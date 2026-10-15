@@ -869,6 +869,7 @@ function unsaved(){if(!PUBLISHED)return false;const t=Date.parse(PUBLISHED.saved
 function saveNow(){ // this browser, automatic
   try{const j=JSON.stringify(payload());if(j!==lastSaved){localStorage.setItem('tt_days',j);lastSaved=j}
     if(ART||SHARED_URL){if(unsaved())setStat('● unsaved changes — hit SAVE so everyone sees them',true);return true}
+    if(NETDIAG){setStat('⚠ not connected to the save server — saved in this browser only',true);return true}
     const n=S.files.length;setStat(n?`✓ ${n} day${n>1?'s':''} kept in this browser`:'');return true;
   }catch(e){setStat('⚠ this browser won\'t keep data — use SAVE HTML',true);return false}
 }
@@ -894,7 +895,7 @@ function backupFile(){saveFile('TikTok_WE_Backup_'+iso(new Date())+'.json',JSON.
 /* ---------- Google shared file (optional, for Netlify) ---------- */
 const SHARED_DEFAULT=''; // paste the Apps Script /exec URL here to build it in for everyone
 let SHARED_URL=(()=>{try{return localStorage.getItem('tt_shared_url')||SHARED_DEFAULT}catch(e){return SHARED_DEFAULT}})();
-let NETLIFY=false; // true when this site's own /api/state save function answers (GitHub-connected Netlify)
+let NETLIFY=false,NETDIAG=''; // true when this site's own /api/state save function answers (GitHub-connected Netlify)
 async function sharedGet(){const r=await fetch(SHARED_URL+(SHARED_URL.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();try{return JSON.parse(t||'{}')}catch(e){throw new Error(NETLIFY?'save function returned a page, not data':'not the shared-save script — check the URL and that access is "Anyone"')}}
 async function sharedPost(obj){const r=await fetch(SHARED_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(obj)});if(!r.ok)throw new Error('HTTP '+r.status);const j=JSON.parse(await r.text());if(!j.ok)throw new Error(j.error||'save failed');return j}
 async function sharedLoad(quiet){
@@ -916,7 +917,7 @@ async function saveAll(){
       const c=e&&e.code;
       if(c==='conflict')return; // someone saved first: page reloads, your edits come back from this browser
       if(c==='not_writer'||c==='not_granted')alert('You can view this page but not save it — ask the owner for edit access. Your changes are kept in this browser.');
-      else{alert('Saving to the page isn\'t available here — downloading a copy of the page with your data instead.');saveHTML()}
+      else alert('Saving to the page isn\'t available here. Your changes are kept in this browser.');
       setStat('● not saved for everyone',true)}
     return;
   }
@@ -928,8 +929,10 @@ async function saveAll(){
     }catch(e){setStat('⚠ save failed — '+e.message,true);alert('Save failed: '+e.message+'. Your data is still kept in this browser — try again.')}
     return;
   }
-  // plain file / Netlify with no shared setup: keep in browser + write the data into a copy of this HTML
-  clearTimeout(saveT);lastSaved='';saveNow();await saveHTML();
+  // no save server reached: keep it in this browser and say why others can't see it
+  clearTimeout(saveT);lastSaved='';saveNow();
+  setStat('⚠ not connected to the save server — saved in this browser only',true);
+  alert(NETDIAG||'Saved in this browser only — this page isn\'t connected to the Netlify save server, so others can\'t see it yet.');
 }
 document.getElementById('btnSave').onclick=saveAll;
 document.getElementById('btnSaveHtml').onclick=saveHTML;
@@ -980,9 +983,10 @@ window.addEventListener('beforeunload',saveNow);
     fetch('/api/state?probe=1',{cache:'no-store'}).then(async r=>{
       const ct=r.headers.get('content-type')||'';
       if(r.ok&&ct.includes('json')){NETLIFY=true;SHARED_URL='/api/state';btnLabels();await sharedLoad(true);setInterval(()=>{if(!unsaved()&&document.visibilityState==='visible')sharedLoad(true)},120000)}
-      else if(SHARED_URL)sharedLoad(true);
-    }).catch(()=>{if(SHARED_URL)sharedLoad(true)});
-  }else if(SHARED_URL)sharedLoad(true);
+      else{NETDIAG=`Saved in this browser only. The Netlify save server didn't answer (${location.host}/api/state gave ${r.status}${r.ok?' but not data':''}). This site was deployed without the save function — deploy it from the GitHub repo (index.html + netlify folder + package.json + netlify.toml), not by drag-and-drop.`;
+        if(SHARED_URL)sharedLoad(true);else setStat('⚠ not connected to the save server — SAVE keeps data in this browser only',true)}
+    }).catch(()=>{NETDIAG='Saved in this browser only — the save server could not be reached.';if(SHARED_URL)sharedLoad(true)});
+  }else{if(!window.claude)NETDIAG='Saved in this browser only — this file is opened from your computer, not from the Netlify link. Open the Netlify link to save for everyone.';if(SHARED_URL)sharedLoad(true)}
 })();
 </script>
 </body>
