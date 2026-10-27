@@ -174,7 +174,9 @@ const S={files:[],inputs:{},sites:new Set(),seen:new Set(),week:null,tab:null};
 
 const LS=(k,d)=>{try{return Object.assign(d,JSON.parse(localStorage.getItem(k)||'{}'))}catch(e){return d}};
 const LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-let DEPTMAP=LS('tt_deptmap',{});   // dept code -> FORKLIFT / LEAD / GENERAL
+const DEPT_DEF={'100':'LEAD','200':'FORKLIFT','300':'GENERAL LABOR'}; // TikTok punch report dept codes
+let DEPTMAP=LS('tt_deptmap',{...DEPT_DEF});
+Object.entries(DEPT_DEF).forEach(([c,b])=>{if(!DEPTMAP[c])DEPTMAP[c]=b});   // dept code -> FORKLIFT / LEAD / GENERAL
 const PAY_DEF={'FORKLIFT':23,'LEAD':25,'GENERAL LABOR':20},MU_DEF=28.5;
 let LRATE=LS('tt_payrates',{...PAY_DEF});   // line -> PAY rate $/hr (bill = pay × (1 + markup))
 let MU=LS('tt_markup',{pct:MU_DEF});
@@ -189,7 +191,7 @@ function nameLine(dept){ // dept named in the punch report
   return null;
 }
 function bucketOf(dept){
-  const mp=DEPTMAP[String(dept||'').trim()];if(mp&&BUCKETS.includes(mp))return mp;
+  const dk=String(dept||'').trim(),mp=DEPT_DEF[dk]||DEPTMAP[dk];if(mp&&BUCKETS.includes(mp))return mp;
   return nameLine(dept)||'GENERAL LABOR';
 }
 // departments with no 2-digit code: map them to a site (saved in this browser)
@@ -206,7 +208,7 @@ const DRX=/\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}/g;
 const pd=s=>{s=String(s);let m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return new Date(+m[3],m[1]-1,+m[2]);m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],m[2]-1,+m[3]):null};
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const mdy=d=>String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+'.'+d.getFullYear();
-const weSat=d=>{const x=new Date(d);x.setDate(x.getDate()+(6-x.getDay()));return x};
+const weSat=d=>{const x=new Date(d);x.setDate(x.getDate()+((7-x.getDay())%7));return x}; // week ending = SUNDAY (work week Mon–Sun)
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- file loading ---------- */
@@ -236,7 +238,7 @@ async function load(list){
   }
   render();
 }
-const hm=v=>{v=String(v||'').trim();if(!v)return null;let m=v.match(/^(-?\d+):(\d{2})$/);if(m)return(+m[1])+(m[1].startsWith('-')?-1:1)*(+m[2])/60;const n=parseFloat(v);return isNaN(n)?null:n};
+const hm=v=>{v=String(v||'').trim();if(!v)return null;let m=v.match(/(-?\d+):(\d{2})/);if(m)return(+m[1])+(m[1].startsWith('-')?-1:1)*(+m[2])/60;const n=parseFloat(v);return isNaN(n)?null:n};
 const tmin=v=>{const m=String(v||'').trim().match(/^(\d{1,2}):(\d{2})\s*([AP])?M?$/i);if(!m)return null;let h=+m[1]%12;if(m[3]&&m[3].toUpperCase()==='P')h+=12;if(!m[3])h=+m[1];return h*60+(+m[2])};
 const tshort=v=>String(v||'').trim().replace(/^0/,'').replace(/\s*([AP])M$/i,(x,a)=>a.toLowerCase());
 function parse(aoa,name){
@@ -245,44 +247,60 @@ function parse(aoa,name){
   const H=aoa[hi].map(h=>String(h).trim().toUpperCase()),col=k=>H.indexOf(k);
   const c={ln:col('EMP L NAME'),fn:col('EMP F NAME'),id:col('EMP##'),date:col('DATE'),in:col('IN'),out:col('OUT'),tot:col('TOTAL'),dept:col('DEPT CODE')};
   let hd=null;for(let i=0;i<hi;i++){const ds=String(aoa[i].join(' ')).match(DRX);if(ds){hd=pd(ds[0]);break}}
-  const g={};
+  // 1) read every punch line, grouped by person + day (all depts, file order)
+  const blank=v=>{v=String(v||'').trim();return /^[-–—_.:\s*]*$/.test(v)?'':v};
+  const pd2={};let seq=0;
   for(let i=hi+1;i<aoa.length;i++){
     const r=aoa[i],L=String(r[c.ln]||'').replace(/\s+/g,' ').trim(),Fn=String(r[c.fn]||'').replace(/\s+/g,' ').trim();
     if(!L&&!Fn)continue;if(/^TOTAL/i.test(L))continue;
     const nm=L&&Fn?L+', '+Fn:L||Fn,d=pd(r[c.date])||hd;if(!d)continue;
-    const code=String(r[c.dept]||'').trim()||'NO DEPT',ti=String(r[c.in]||'').trim(),to=String(r[c.out]||'').trim();
-    let h=hm(r[c.tot]);
-    if(h==null&&ti&&to){const a=tmin(ti),b=tmin(to);if(a!=null&&b!=null)h=((b-a+1440)%1440)/60}
-    const k=iso(d)+'|'+nm.toUpperCase()+'|'+code;
-    const x=g[k]=g[k]||{d:iso(d),name:nm,id:String(r[c.id]||'').trim(),dept:code,tot:0,miss:0,io:[],fin:1e9};const tm=tmin(ti);if(tm!=null)x.fin=Math.min(x.fin,tm);
-    x.tot+=h||0;if(!ti||!to)x.miss++;x.io.push((ti?tshort(ti):'??')+'–'+(to?tshort(to):'??'));
+    const code=String(r[c.dept]||'').trim()||'NO DEPT',ti=blank(r[c.in]),to=blank(r[c.out]);
+    if(!ti&&!to&&hm(r[c.tot])==null)continue;
+    const pk=iso(d)+'|'+nm.toUpperCase();(pd2[pk]=pd2[pk]||{d:iso(d),name:nm,id:String(r[c.id]||'').trim(),segs:[]}).segs.push({code,ti,to,tot:hm(r[c.tot]),n:seq++});
   }
+  // 2) missing lunch punches: join the halves into one straight shift so the hours still count
+  //    IN-only + OUT-only → IN→OUT · IN-only + IN/OUT → first IN→OUT · IN/OUT + OUT-only → IN→last OUT
+  Object.values(pd2).forEach(p=>{const S2=p.segs;
+    for(let n=0;n<S2.length-1;n++){const a=S2[n],b=S2[n+1];
+      if(a.ti&&!a.to&&b.to){a.to=b.to;a.tot=null;a.lunchMiss=b.ti?'lunch OUT punch missing':'lunch OUT and IN punches missing';S2.splice(n+1,1);n--;continue}
+      if(a.ti&&a.to&&!b.ti&&b.to){a.to=b.to;a.tot=null;a.lunchMiss='lunch IN punch missing';S2.splice(n+1,1);n--;continue}
+    }});
+  // 3) roll up per person + day + dept
+  const g={};
+  Object.values(pd2).forEach(p=>p.segs.forEach(sg=>{
+    const{ti,to,code}=sg;let h=sg.tot;
+    if((h==null||sg.lunchMiss)&&ti&&to){const a=tmin(ti),b=tmin(to);if(a!=null&&b!=null)h=((b-a+1440)%1440)/60}
+    const k=p.d+'|'+p.name.toUpperCase()+'|'+code;
+    const x=g[k]=g[k]||{d:p.d,name:p.name,id:p.id,dept:code,tot:0,miss:0,io:[],fin:1e9};const tm=tmin(ti);if(tm!=null)x.fin=Math.min(x.fin,tm);
+    if(sg.lunchMiss)x.lunchMiss=sg.lunchMiss;
+    x.tot+=(ti&&to)?(h||0):0;if(!ti||!to)x.miss++;if(ti&&!to){const m=tmin(ti);if(m!=null)x.open=(x.open||[]).concat(m)}x.io.push((ti?tshort(ti):'??')+'–'+(to?tshort(to):'??'));
+  }));
   const days=[...new Set(Object.values(g).map(x=>x.d))].sort();
   if(!days.length)return null;
   return days.map(dk=>{const dt=new Date(dk+'T00:00:00');
-    const rows=Object.values(g).filter(x=>x.d===dk).sort((a,b)=>a.name.localeCompare(b.name)).map((x,n)=>({i:n,src:'punch',name:x.name,emp:x.id,dept:x.dept,raw:+x.tot.toFixed(2),fin:x.fin,reg:+x.tot.toFixed(2),ot:0,dt:0,tot:+x.tot.toFixed(2),pay:0,site:'TT',bucket:bucketOf(x.dept),miss:x.miss,io:x.io.join(', ')}));
+    const rows=Object.values(g).filter(x=>x.d===dk).sort((a,b)=>a.name.localeCompare(b.name)).map((x,n)=>({i:n,src:'punch',name:x.name,emp:x.id,dept:x.dept,raw:+x.tot.toFixed(2),fin:x.fin,reg:+x.tot.toFixed(2),ot:0,dt:0,tot:+x.tot.toFixed(2),pay:0,site:'TT',bucket:bucketOf(x.dept),miss:x.miss,open:x.open||null,lunchMiss:x.lunchMiss||null,io:x.io.join(', ')}));
     return{name:name+(days.length>1?' ('+mdy(dt).slice(0,5)+')':''),start:dt,end:dt,single:true,rows,moves:[],key:dk}});
 }
 /* California OT (per associate, all punches/depts combined):
    daily: first 8 = REG, 8–12 = OT 1.5×, over 12 = DT 2×
-   weekly (Sun–Sat): REG hours past 40 become OT
+   weekly (Mon–Sun): REG hours past 40 become OT
    7th consecutive day worked in the week: first 8 = OT, over 8 = DT */
-let NODED=false; // true = price without handshake deductions (for before/after)
+let NODED=false,NODEL=false,NOLUNCH=false; // NODEL = price as if nobody was deleted // true = price without handshake deductions (for before/after)
 function reprice(){
   const wk={};S.files.forEach(f=>{if(!f.rows.some(r=>r.src==='punch'))return;(wk[iso(weSat(f.end))]=wk[iso(weSat(f.end))]||[]).push(f)});
   Object.values(wk).forEach(fs=>{
     const byDay={};fs.forEach(f=>{if(f.single)byDay[f.start.getDay()]=f});
     const wkReg={},daysWorked={};
-    for(let dw=0;dw<7;dw++){const f=byDay[dw];if(!f)continue;const fx=f.fix||{},dd=NODED?{}:(f.ded||{});
+    for(const dw of [1,2,3,4,5,6,0]){const f=byDay[dw];if(!f)continue;const fx=f.fix||{},dd=NODED?{}:(f.ded||{});
       const ppl={};f.rows.forEach(r=>{if(r.src!=='punch')return;if(r.raw==null)r.raw=r.tot;if(r.fin==null)r.fin=1e9;
-        r.bucket=bucketOf(r.dept);r.site='TT';const x=fx[r.i]||{};r.deleted=!!x.del;const base=x.del?0:Math.max(0,x.hrs!=null&&x.hrs!==''?num(x.hrs):r.raw),cut=Math.min(base,num(dd[r.i]||0));
+        r.bucket=bucketOf(r.dept);r.site='TT';const x=fx[r.i]||{};r.deleted=!!x.del&&!NODEL;const base=r.deleted?0:Math.max(0,x.hrs!=null&&x.hrs!==''?num(x.hrs)+(NOLUNCH&&x.lunchDed!=null?x.lunchDed/60:0):r.raw),cut=Math.min(base,num(dd[r.i]||0));
         r.base=base;r.hrs=+(base-cut).toFixed(2);r.removed=cut>0&&r.hrs<=.001;r.trimmed=cut>0&&!r.removed?+cut.toFixed(2):0;
         (ppl[nkey(r)]=ppl[nkey(r)]||[]).push(r)});
       Object.entries(ppl).forEach(([k,rs])=>{
         const t=rs.reduce((a,r)=>a+r.hrs,0);
         const worked=(daysWorked[k]||0)+(t>0?1:0);daysWorked[k]=worked;
         let reg,ot,dt;
-        if(dw===6&&worked===7&&t>0){reg=0;ot=Math.min(t,8);dt=Math.max(0,t-8)}
+        if(dw===0&&worked===7&&t>0){reg=0;ot=Math.min(t,8);dt=Math.max(0,t-8)}
         else{reg=Math.min(t,8);ot=Math.min(Math.max(t-8,0),4);dt=Math.max(t-12,0)}
         const c=wkReg[k]||0,keep=Math.min(reg,Math.max(0,40-c)),wkOT=reg-keep;wkReg[k]=c+keep;
         // hand out the day's hours to each dept row in punch order: REG, then OT (weekly, then daily), then DT
@@ -299,7 +317,7 @@ function reprice(){
 function ratePanel(){
   const codes=[...new Set(S.files.flatMap(f=>f.rows.map(r=>r.dept)))].sort();
   const hrs={};S.files.forEach(f=>f.rows.forEach(r=>hrs[r.dept]=(hrs[r.dept]||0)+r.tot));
-  const un=codes.filter(c=>!DEPTMAP[c]&&!nameLine(c)),odd=codes.filter(c=>DEPTMAP[c]||!nameLine(c));
+  const un=codes.filter(c=>!DEPTMAP[c]&&!nameLine(c)),odd=codes.filter(c=>!DEPT_DEF[c]&&(DEPTMAP[c]||!nameLine(c)));
   const dflt=BUCKETS.every(b=>num(LRATE[b])===PAY_DEF[b])&&num(MU.pct)===MU_DEF;
   return`<h3>Pay Rates & Markup</h3><div class="mvbox noprint" style="display:block">
    <div class="scroll"><table class="orig rb" style="max-width:640px"><thead><tr><th>Line</th><th>Pay Rate $/hr</th><th>Markup %</th><th>Bill Rate $/hr</th><th>OT Bill (1.5×)</th><th>DT Bill (2×)</th></tr></thead><tbody>
@@ -333,7 +351,7 @@ const label=f=>f.single?DAYS[f.start.getDay()]+' '+mdy(f.start):mdy(f.start)+' �
 let RATES=(()=>{try{return JSON.parse(localStorage.getItem('tt_rates')||'{}')}catch(e){return{}}})();
 const saveRates=()=>{try{localStorage.setItem('tt_rates',JSON.stringify(RATES))}catch(e){}};
 const rkey=r=>r.name.toUpperCase()+'|'+r.dept.toUpperCase();
-S.pmin=2;S.pmax=12;
+S.pmin=2;S.pmax=12;S.lunchNeed=5;S.lunchMin=30;S.lunchGap=15; // CA: meal by 5 hrs worked, 30 min; a gap of 15+ min between punches counts as a lunch
 function origRate(r){const u=r.reg+1.5*r.ot+2*(r.dt||0);return r.pay&&u>0?r.pay/u:0}
 function deptRate(dept){ // median straight-time bill rate for this dept across loaded files
   const v=[];S.files.forEach(f=>f.rows.forEach(r=>{if(r.dept===dept&&r.pay>0&&r.tot>0){const x=origRate(r);if(x>0)v.push(x)}}));
@@ -343,7 +361,7 @@ const isNoRate=r=>Math.abs(r.tot)>.001&&Math.abs(r.pay)<.005;
 function punchWhy(f,r){
   if(r.deleted)return'';
   r={...r,tot:r.raw!=null?r.raw:r.tot};
-  if(r.miss)return'missing '+(r.io.includes('??–')?'IN':'OUT')+' punch';
+  if(r.miss)return r.open?'no OUT punch — still on the clock?':'missing '+(r.io.includes('??–')?'IN':'OUT')+' punch';
   if(r.tot<0||r.reg<0)return'negative hours';
   if(Math.abs(r.tot)<.001)return'zero hours';
   if(f.single&&r.tot<S.pmin)return`under ${S.pmin} hrs`;
@@ -374,28 +392,84 @@ function fixRow0(f,r){
   o.fixed=!!fx&&(fx.reg!=null||fx.ot!=null||fx.rate!=null);o.rateUsed=rate;o.savedRate=!fx&&!!sv;
   return o;
 }
+/* ---------- LUNCH: read each person's IN/OUT pairs for the day ---------- */
+const ioMin=t=>{const m=String(t).match(/(\d{1,2}):(\d{2})\s*([ap])?/i);if(!m)return null;let h=+m[1];if(m[3]){h%=12;if(m[3].toLowerCase()==='p')h+=12}return h*60+(+m[2])};
+const mclock=m=>{m=((m%1440)+1440)%1440;let h=Math.floor(m/60),mm=m%60,ap=h<12?'a':'p';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+ap};
+function lunchCheck(f){
+  const ppl={};
+  f.rows.forEach(r=>{if(r.deleted||r.removed||!r.io)return;const k=nkey(r);const p=ppl[k]=ppl[k]||{name:r.name,rows:[],segs:[]};p.rows.push(r);
+    r.io.split(',').forEach(x=>{const [a,b]=x.split('–');const i=ioMin(a),o=ioMin(b);if(i!=null)p.segs.push([i,o])})});
+  const out=[];
+  Object.values(ppl).forEach(p=>{
+    if(!p.segs.length)return;
+    // overnight: if punches span more than 12 hrs of clock, the early-morning ones belong after midnight
+    const ins=p.segs.map(s=>s[0]);if(Math.max(...ins)-Math.min(...ins)>720)p.segs.forEach(s=>{if(s[0]<720){s[0]+=1440;if(s[1]!=null)s[1]+=1440}});
+    p.segs.forEach(s=>{if(s[1]!=null&&s[1]<s[0])s[1]+=1440});
+    p.segs.sort((a,b)=>a[0]-b[0]);
+    const open=p.segs.some(s=>s[1]==null);
+    const worked=p.segs.reduce((a,s)=>a+(s[1]!=null?s[1]-s[0]:0),0)/60;
+    const gaps=[];for(let n=1;n<p.segs.length;n++){const prev=p.segs[n-1][1];if(prev==null)continue;const g=p.segs[n][0]-prev;if(g>=S.lunchGap)gaps.push({from:prev,to:p.segs[n][0],min:g})}
+    let why='',kind='';
+    if(gaps.length>=2){kind='double';why=`${gaps.length} lunches: `+gaps.map(g=>`${mclock(g.from)}–${mclock(g.to)} (${g.min} min)`).join(', ')}
+    else if(!gaps.length&&!open&&worked>S.lunchNeed){kind='none';const lm=p.rows.find(r=>r.lunchMiss);why=lm?`${lm.lunchMiss} — counted ${f2(worked)} hrs straight through`:`no lunch punch — ${f2(worked)} hrs worked`}
+    else if(gaps.length===1&&gaps[0].min<S.lunchMin){kind='short';why=`short lunch ${gaps[0].min} min (${mclock(gaps[0].from)}–${mclock(gaps[0].to)})`}
+    else if(gaps.length===1){const before=(gaps[0].from-p.segs[0][0])/60;if(before>S.lunchNeed){kind='late';why=`late lunch — started after ${f2(before)} hrs`}}
+    if(!kind)return;
+    const main=p.rows.slice().sort((a,b)=>(b.hrs||0)-(a.hrs||0))[0];
+    out.push({kind,why,name:p.name,rows:p.rows,main,worked,gaps,io:p.rows.map(r=>r.io).join(', '),fx:(f.fix||{})[main.i]||{}});
+  });
+  const ord={none:0,double:1,short:2,late:3};
+  return out.sort((a,b)=>ord[a.kind]-ord[b.kind]||a.name.localeCompare(b.name));
+}
 function issues(f){
-  const rows=f.rows.filter(r=>S.sites.has(r.site)),fx=f.fix||{};
+  const rows=f.rows.filter(r=>S.sites.has(r.site)&&!r.deleted&&!r.removed),fx=f.fix||{};
   const punch=rows.filter(r=>punchWhy(f,r)).map(r=>({r,why:punchWhy(f,r),fx:fx[r.i]||{}}));
   const norate=rows.filter(r=>isNoRate(r)).map(r=>({r,fx:fx[r.i]||{}}));
   const done=x=>x.fx.ok||(x.fx.hrs!=null&&x.fx.hrs!=='')||(x.fx.reg!=null&&x.fx.reg!=='')||(x.fx.ot!=null&&x.fx.ot!=='');
   const rdone=x=>x.fx.ok||(x.r.pay>0)||(x.fx.rate!=null&&x.fx.rate!=='')||!!RATES[rkey(x.r)];
-  return{leads:[],openL:0,punch,norate,openP:punch.filter(x=>!done(x)).length,openR:norate.filter(x=>!rdone(x)).length,done,rdone};
+  const lunch=lunchCheck(f),ldone=x=>!!x.fx.lunchOk||x.fx.lunchDed!=null;
+  return{leads:[],lunch,ldone,openL:lunch.filter(x=>!ldone(x)).length,punch,norate,openP:punch.filter(x=>!done(x)).length,openR:norate.filter(x=>!rdone(x)).length,done,rdone};
 }
 function issuePanel(f){
-  const I=issues(f);if(!I.punch.length&&!I.norate.length)return`<h3>Timecard Issues</h3><div class="plan" style="border-color:var(--good)">✓ No missed punches or missing bill rates.</div>`;
+  const I=issues(f);if(!I.punch.length&&!I.norate.length&&!I.lunch.length)return`<h3>Timecard Issues</h3><div class="plan" style="border-color:var(--good)">✓ No missed punches, lunch issues or missing bill rates.</div>`;
   const k=f.key,cur=fixRow;
   const inp3=(i,fl,v,ph)=>`<input data-fix="${i}" data-fl="${fl}" data-f="${k}" value="${v==null?'':esc(v)}" placeholder="${esc(ph)}" inputmode="decimal">`;
   let h=`<h3>Timecard Issues</h3><div class="issues">`;
   // missed punch
   h+=`<div class="ibox ${I.openP?'open':''}"><div class="ihd"><b>MISSED PUNCH</b> <span class="cnt">${I.openP} open / ${I.punch.length}</span>
     ${f.single?`<span class="thr">flag under <input data-thr="pmin" value="${S.pmin}"> or over <input data-thr="pmax" value="${S.pmax}"> hrs</span>`:'<span class="thr">period file — flags zero/negative only</span>'}</div>`;
+  const openRows=f.rows.filter(r=>r.open&&r.open.length&&!r.deleted);
+  if(openRows.length){const waiting=openRows.filter(r=>{const x=(f.fix||{})[r.i]||{};return x.hrs==null||x.hrs===''}).length;
+    h+=`<div class="mvbox" style="display:flex;margin:8px 0"><b style="font-size:12px">${openRows.length} still clocked in (no OUT)${waiting<openRows.length?` · ${openRows.length-waiting} filled`:''}</b>
+      <label>SET OUT TIME FOR ALL<input type="time" id="openOut_${k}" value="${esc(S.openOut||'18:30')}" style="min-width:0;width:130px"></label>
+      <label>MEAL BREAK (MIN)<input id="openMeal_${k}" value="${esc(S.openMeal??'30')}" inputmode="numeric" style="min-width:0;width:80px"></label>
+      <button class="pri" data-act="openfill" data-f="${k}">FILL ${waiting||openRows.length} OPEN PUNCH${(waiting||openRows.length)>1?'ES':''}</button>
+      ${waiting<openRows.length?`<button data-act="openclr" data-f="${k}">CLEAR FILLED</button>`:''}
+      <span class="hint" style="flex-basis:100%">Hours = OUT time − IN punch − meal break, for everyone with no OUT. Re-drop the punch report later to use real OUT punches.</span></div>`}
   if(I.punch.length){h+=`<div class="scroll"><table class="itbl"><thead><tr><th>Employee</th><th>Dept</th><th>Why</th><th>Punch Hrs</th><th>Correct Hrs</th><th>Reg / OT / DT</th><th>Rate</th><th>Bill $</th><th></th></tr></thead><tbody>`;
     I.punch.forEach(x=>{const r=x.r,o=cur(f,r),ok=I.done(x);
       h+=`<tr class="${ok?'okrow':''}"><td>${esc(r.name)}${r.io?`<br><small style="color:var(--mute)">${esc(r.io)}</small>`:''}</td><td>${esc(r.dept)}</td><td class="neg">${x.why}</td>
       <td>${f2(r.raw!=null?r.raw:r.tot)}</td><td>${inp3(r.i,'hrs',x.fx.hrs,'hrs')}</td><td>${f2(r.reg)} / ${hr(r.ot)} / ${hr(r.dt||0)}</td><td>${o.rateUsed||origRate(r)?'$'+(o.rateUsed||origRate(r)).toFixed(2):'–'}</td><td>${$m(o.pay)}</td>
       <td>${ok?`<span class="tag">${x.fx.ok?'OK':'FIXED'}</span> <button class="mini x" data-act="fixclr" data-f="${k}" data-i="${r.i}">reset</button>`:`<button class="mini" data-act="fixok" data-f="${k}" data-i="${r.i}">OK as is</button>`}</td></tr>`});
     h+=`</tbody></table></div>`}else h+=`<div class="pos" style="font-size:13px">✓ None</div>`;
+  h+=`</div>`;
+  // lunch
+  const KL={none:'NO LUNCH',double:'DOUBLE LUNCH',short:'SHORT LUNCH',late:'LATE LUNCH'};
+  const cntK=t=>I.lunch.filter(x=>x.kind===t).length;
+  h+=`<div class="ibox ${I.openL?'open':''}"><div class="ihd"><b>LUNCH</b> <span class="cnt">${I.openL} open / ${I.lunch.length}</span>
+    ${['none','double','short','late'].filter(t=>cntK(t)).map(t=>`<span class="tag ${t==='none'||t==='double'?'rm':'t2'}">${cntK(t)} ${KL[t].toLowerCase()}</span>`).join(' ')}
+    <span class="thr">lunch needed over <input data-thr="lunchNeed" value="${S.lunchNeed}"> hrs · under <input data-thr="lunchMin" value="${S.lunchMin}"> min is short</span>
+    ${I.lunch.some(x=>x.kind==='none'&&!I.ldone(x))?`<button class="mini" data-act="lunchdedall" data-f="${k}">DEDUCT 30 MIN FROM ALL NO-LUNCH</button>`:''}</div>`;
+  if(I.lunch.length){h+=`<div class="scroll"><table class="itbl"><thead><tr><th>Employee</th><th>Dept</th><th>Issue</th><th>Punches</th><th>Hrs Worked</th><th></th></tr></thead><tbody>`;
+    I.lunch.forEach(x=>{const ok=I.ldone(x),r=x.main;
+      h+=`<tr class="${ok?'okrow':''}"><td>${esc(x.name)}</td><td>${[...new Set(x.rows.map(z=>z.dept))].map(esc).join(', ')}</td>
+       <td><span class="tag ${x.kind==='none'||x.kind==='double'?'rm':'t2'}">${KL[x.kind]}</span> <small>${esc(x.why)}</small></td>
+       <td style="text-align:left;font-size:11px;color:var(--mute)">${esc(x.io)}</td><td>${f2(x.worked)}</td>
+       <td style="white-space:nowrap">${x.fx.lunchDed!=null?`<span class="tag">−${x.fx.lunchDed} min deducted</span> <button class="mini x" data-act="lunchundo" data-f="${k}" data-i="${r.i}">undo</button>`:
+         x.fx.lunchOk?`<span class="tag">OK</span> <button class="mini x" data-act="lunchundo" data-f="${k}" data-i="${r.i}">undo</button>`:
+         `${x.kind==='none'?`<button class="mini" data-act="lunchded" data-f="${k}" data-i="${r.i}">DEDUCT 30 MIN</button> `:''}<button class="mini" data-act="lunchok" data-f="${k}" data-i="${r.i}">OK AS IS</button>`}</td></tr>`});
+    h+=`</tbody></table></div><div class="hint" style="margin-top:4px">A gap of ${S.lunchGap}+ min between an OUT and the next IN counts as a lunch. Double lunch: both gaps are already unpaid, so hours are correct — check it wasn't a missed IN/OUT. DEDUCT 30 MIN takes 30 min off and recalculates OT.</div>`}
+  else h+=`<div class="pos" style="font-size:13px">✓ None</div>`;
   h+=`</div>`;
   // no bill rate
   h+=`<div class="ibox ${I.openR?'open':''}"><div class="ihd"><b>NO BILL RATE</b> <span class="cnt">${I.openR} open / ${I.norate.length}</span>
@@ -474,13 +548,13 @@ const siteLbl=()=>{const a=[...S.sites].sort();return a.length?a.join(', '):'non
 function agg(rows){
   const o={};BUCKETS.forEach(b=>o[b]={reg:0,ot:0,dt:0,tot:0,pay:0,names:new Set()});
   const all=new Set();
-  rows.forEach(r=>{const a=o[r.bucket];a.reg+=r.reg;a.ot+=r.ot;a.dt+=(r.dt||0);a.tot+=r.tot;a.pay+=r.pay;if(r.tot>0&&!r.adj){a.names.add(r.name);all.add(r.name)}});
+  rows.forEach(r=>{const a=o[r.bucket];a.reg+=r.reg;a.ot+=r.ot;a.dt+=(r.dt||0);a.tot+=r.tot;a.pay+=r.pay;if((r.tot>0||(r.miss&&r.open&&!r.deleted&&!r.removed))&&!r.adj){a.names.add(r.name);all.add(r.name)}});
   const t={reg:0,ot:0,dt:0,tot:0,pay:0};BUCKETS.forEach(b=>{t.reg+=o[b].reg;t.ot+=o[b].ot;t.dt+=o[b].dt;t.tot+=o[b].tot;t.pay+=o[b].pay});
   t.head=all.size;return{b:o,t};
 }
 const inp=(k,b)=>{S.inputs[k]=S.inputs[k]||{};return S.inputs[k][b]=S.inputs[k][b]||{hs:'',hc:'',vol:'',inv:''}};
 function weekFiles(){
-  const sat=new Date(S.week+'T00:00:00'),sun=new Date(sat);sun.setDate(sat.getDate()-6);
+  const sat=new Date(S.week+'T00:00:00'),sun=new Date(sat);sun.setDate(sat.getDate()-6); // sat = week-ending Sunday, sun = Monday start
   const days=DAYS.map((_,i)=>{const d=new Date(sun);d.setDate(sun.getDate()+i);return{d,f:S.files.find(f=>f.single&&f.key===iso(d))}});
   const ranges=S.files.filter(f=>!f.single&&iso(weSat(f.end))===S.week);
   return{sat,sun,days,ranges};
@@ -529,13 +603,15 @@ function render(){
   const W=weekFiles();
   const tabs=W.days.map(({d,f})=>({k:iso(d),t:DAYS[d.getDay()].toUpperCase(),s:mdy(d).slice(0,5),has:!!f}))
     .concat(W.ranges.map(f=>({k:f.key,t:'PERIOD',s:mdy(f.start).slice(0,5)+'–'+mdy(f.end).slice(0,5),has:true})))
-    .concat([{k:'SUMMARY',t:'SUMMARY',s:'W.E. '+mdy(W.sat).slice(0,5),has:true}]);
-  if(!tabs.some(t=>t.k===S.tab))S.tab=(tabs.find(t=>t.has&&t.k!=='SUMMARY')||tabs[tabs.length-1]).k;
+    .concat([{k:'SUMMARY',t:'SUMMARY',s:'W.E. '+mdy(W.sat).slice(0,5),has:true},{k:'LOST',t:'LOST HRS',s:'report',has:true}]);
+  if(!tabs.some(t=>t.k===S.tab))S.tab=(tabs.find(t=>t.has&&t.k!=='SUMMARY'&&t.k!=='LOST')||tabs[tabs.length-1]).k;
   const badge=k=>{const f=S.files.find(x=>x.key===k);if(!f)return'';const I=issues(f),n=I.openP+I.openR+I.openL;return n?`<span class="bdg">${n}</span>`:''};
   let h='<div class="tabs">'+tabs.map(t=>`<div class="tab ${t.has?'has':''} ${S.tab===t.k?'on':''}" data-k="${t.k}">${t.t}${badge(t.k)}<small>${t.s}</small></div>`).join('')+'</div><div class="panel">';
   if(S.tab==='SUMMARY')h+=summaryView(W);
+  else if(S.tab==='LOST')h+=lostView(W);
   else{const f=S.files.find(x=>x.key===S.tab);h+=f?dayView(f):emptyDay(S.tab)}
   v.innerHTML=h+'</div>';
+  {const b=document.getElementById('btnLostX');if(b)b.onclick=exportLost;document.querySelectorAll('[data-xdel]').forEach(x=>x.onclick=exportRemoved)}
   v.querySelectorAll('[data-lrate]').forEach(el=>el.onchange=()=>{const v2=el.value.replace(/[$,\s]/g,'');if(v2==='')delete LRATE[el.dataset.lrate];else LRATE[el.dataset.lrate]=num(v2);LSs('tt_payrates',LRATE);render()});
   v.querySelectorAll('[data-mu]').forEach(el=>el.onchange=()=>{MU.pct=num(el.value.replace('%',''));LSs('tt_markup',MU);render()});
   v.querySelectorAll('[data-ratereset]').forEach(el=>el.onclick=()=>{Object.keys(LRATE).forEach(k=>delete LRATE[k]);Object.assign(LRATE,PAY_DEF);MU.pct=MU_DEF;LSs('tt_payrates',LRATE);LSs('tt_markup',MU);render()});
@@ -591,6 +667,112 @@ function recalc(){ // light refresh of computed cells without losing focus
 function kpis(T,extra=''){
   return`<div class="kpis"><div class="kpi"><div class="l">Headcount</div><div class="v">${T.head}</div></div><div class="kpi"><div class="l">Reg Hours</div><div class="v">${f2(T.reg)}</div></div><div class="kpi"><div class="l">OT Hours (1.5×)</div><div class="v ${T.ot?'ot':''}">${f2(T.ot)}</div></div><div class="kpi"><div class="l">DT Hours (2×)</div><div class="v ${T.dt?'neg':''}">${f2(T.dt)}</div></div><div class="kpi"><div class="l">Total Hours</div><div class="v">${f2(T.tot)}</div></div><div class="kpi"><div class="l">Total Billing</div><div class="v">${$m(T.pay)}</div></div>${extra}</div>`;
 }
+/* ---------- LOST HOURS: everything taken off billing for the week ---------- */
+function lostHours(W){
+  const files=W.days.map(x=>x.f).filter(Boolean).concat(W.ranges);
+  const snap=()=>{const m={};files.forEach(f=>f.rows.forEach(r=>{m[f.key+'|'+r.i]={tot:r.tot,reg:r.reg,ot:r.ot,dt:r.dt||0,pay:r.pay,removed:r.removed,deleted:r.deleted,trimmed:r.trimmed}}));return m};
+  reprice();const now=snap();
+  NODED=NODEL=NOLUNCH=true;reprice();const full=snap();NODED=NODEL=NOLUNCH=false;reprice();
+  const L=[];
+  files.forEach(f=>f.rows.forEach(r=>{const k=f.key+'|'+r.i,a=full[k],b=now[k];if(!a||!b)return;
+    const dh=a.tot-b.tot,dp=a.pay-b.pay;if(dh<.001&&Math.abs(dp)<.005)return;
+    const x=(f.fix||{})[r.i]||{},why=[];
+    if(b.deleted)why.push('Deleted');
+    else{if(b.removed)why.push('Handshake HC — removed');if(b.trimmed)why.push('Handshake hrs — trimmed');if(x.lunchDed!=null&&dh>.001)why.push('No lunch — '+x.lunchDed+' min deducted')}
+    if(!why.length)why.push('OT moved (hours removed earlier in week)');
+    L.push({f,d:f.start,name:r.name,dept:r.dept,line:r.bucket,why:why.join(' + '),kind:why[0],punch:a.tot,billed:b.tot,hrs:dh,pay:dp,reg:a.reg-b.reg,ot:a.ot-b.ot,dt:a.dt-b.dt})}));
+  // removed / deleted people: no names — one line per day + line + reason
+  const anon=x=>x.kind==='Deleted'||x.kind==='Handshake HC — removed';
+  const grp={};L.filter(anon).forEach(x=>{const k=iso(x.d)+'|'+x.line+'|'+x.kind;const g=grp[k]=grp[k]||{...x,n:new Set(),punch:0,billed:0,hrs:0,pay:0,reg:0,ot:0,dt:0,depts:new Set()};
+    g.n.add(x.name);g.depts.add(x.dept);['punch','billed','hrs','pay','reg','ot','dt'].forEach(q=>g[q]+=x[q])});
+  const kept=L.filter(x=>!anon(x));L.length=0;kept.forEach(x=>L.push(x));
+  Object.values(grp).forEach(g=>L.push({...g,name:g.n.size+' associate'+(g.n.size>1?'s':''),dept:[...g.depts].join(', '),anon:true,cnt:g.n.size,nset:g.n}));
+  L.sort((p,q)=>p.d-q.d||LOST_ORDER.indexOf(p.kind)-LOST_ORDER.indexOf(q.kind)||p.name.localeCompare(q.name));
+  const by=key=>{const o={};L.forEach(x=>{const g=o[x[key]]=o[x[key]]||{n:new Set(),hrs:0,pay:0};(x.nset?[...x.nset]:[x.name]).forEach(n=>g.n.add(n));g.hrs+=x.hrs;g.pay+=x.pay});return o};
+  return{L,hrs:L.reduce((a,x)=>a+x.hrs,0),pay:L.reduce((a,x)=>a+x.pay,0),people:new Set(L.filter(x=>x.hrs>.001).flatMap(x=>x.nset?[...x.nset]:[x.name])).size,byKind:by('kind'),byLine:by('line')};
+}
+const LOST_ORDER=['Handshake HC — removed','Handshake hrs — trimmed','Deleted','No lunch — 30 min deducted','OT moved (hours removed earlier in week)'];
+function lostView(W){
+  const X=lostHours(W);
+  let h=`<div class="ttl"><h2>${esc(siteTitle())} — LOST HOURS REPORT</h2><span class="m">W.E. ${mdy(W.sat)} · ${mdy(W.sun)} – ${mdy(W.sat)}</span></div>`;
+  h+=`<div class="kpis"><div class="kpi"><div class="l">People</div><div class="v">${X.people}</div></div><div class="kpi"><div class="l">Hours Lost</div><div class="v neg">${f2(X.hrs)}</div></div><div class="kpi"><div class="l">Billing Lost</div><div class="v neg">${$m(X.pay)}</div></div></div>`;
+  h+=`<div class="noprint" style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap"><button class="pri" id="btnLostX">EXPORT LOST HOURS TO EXCEL</button><button data-xdel="1">📋 EXPORT DELETED ASSOCIATES LIST</button></div>`;
+  if(!X.L.length)return h+`<div class="plan" style="border-color:var(--good)">✓ No hours taken off this week.</div>`;
+  const kinds=Object.keys(X.byKind).sort((a,b)=>LOST_ORDER.indexOf(a)-LOST_ORDER.indexOf(b));
+  h+=`<div style="display:flex;gap:16px;flex-wrap:wrap"><div style="min-width:0;flex:1 1 340px"><h3>By Reason</h3><div class="scroll"><table class="orig"><thead><tr><th>Reason</th><th>People</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${kinds.map(k=>{const g=X.byKind[k];return`<tr><td style="text-align:left"><b>${esc(k)}</b></td><td>${g.n.size}</td><td>${f2(g.hrs)}</td><td class="neg">${$m(g.pay)}</td></tr>`}).join('')}
+    <tr class="tot"><td>TOTAL</td><td>${X.people}</td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div></div>
+   <div style="min-width:0;flex:1 1 300px"><h3>By Line</h3><div class="scroll"><table class="orig"><thead><tr><th>Line</th><th>People</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${BUCKETS.filter(b=>X.byLine[b]).map(b=>{const g=X.byLine[b];return`<tr><td><b>${b}</b></td><td>${g.n.size}</td><td>${f2(g.hrs)}</td><td class="neg">${$m(g.pay)}</td></tr>`}).join('')}
+    <tr class="tot"><td>TOTAL</td><td>${X.people}</td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div></div></div>`;
+  h+=`<h3>Detail</h3><div class="scroll"><table class="orig"><thead><tr><th>Date</th><th>Employee</th><th>Dept</th><th>Line</th><th>Reason</th><th>Punch Hrs</th><th>Billed Hrs</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${X.L.map(x=>`<tr><td>${DAYS[x.d.getDay()]} ${mdy(x.d).slice(0,5)}</td><td style="text-align:left">${x.anon?`<i>${esc(x.name)}</i>`:esc(x.name)}</td><td>${esc(x.dept)}</td><td>${x.line}</td><td style="text-align:left">${esc(x.why)}</td><td>${f2(x.punch)}</td><td>${f2(x.billed)}</td><td class="neg">${x.hrs>.001?f2(x.hrs):'–'}</td><td class="neg">${$m(x.pay)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="5">TOTAL</td><td></td><td></td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div>`;
+  return h;
+}
+function removedList(W){ // the ONLY place names of deleted / removed associates appear
+  const files=W.days.map(x=>x.f).filter(Boolean).concat(W.ranges);
+  reprice();const now={};files.forEach(f=>f.rows.forEach(r=>{now[f.key+'|'+r.i]={deleted:r.deleted,removed:r.removed}}));
+  NODED=NODEL=true;reprice();
+  const L=[];files.forEach(f=>f.rows.forEach(r=>{const n=now[f.key+'|'+r.i];if(!n||!(n.deleted||n.removed))return;const x=(f.fix||{})[r.i]||{};
+    L.push({d:f.start,name:r.name,emp:r.emp||'',dept:r.dept,line:r.bucket,why:n.deleted?'Deleted':'Handshake HC — removed',io:r.io||'',reg:r.reg,ot:r.ot,dt:r.dt||0,hrs:r.tot,pay:r.pay,when:x.delAt?new Date(x.delAt):null})}));
+  NODED=NODEL=false;reprice();
+  return L.sort((a,b)=>a.d-b.d||a.why.localeCompare(b.why)||a.name.localeCompare(b.name));
+}
+async function exportRemoved(){
+  if(typeof ExcelJS==='undefined')return alert('Excel library did not load — check your internet connection and reload.');
+  const W=weekFiles(),L=removedList(W),t=siteTitle(),wb=new ExcelJS.Workbook();
+  if(!L.length)return alert('No deleted or removed associates this week.');
+  const ws=wb.addWorksheet('DELETED ASSOCIATES',{views:[{showGridLines:false}],properties:{tabColor:{argb:'FFC0392B'}},pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  xHeader(wb,ws,t,'W.E. '+mdy(W.sat));
+  [11,26,10,9,15,22,24,8,8,8,9,12].forEach((w2,i)=>ws.getColumn(i+1).width=w2);
+  const G='FFE7E6E6',Y='FFFFF2CC',C='ABCDEFGHIJKL';
+  let row=7;ws.mergeCells(`A${row}:L${row}`);xSet(ws,'A'+row,'DELETED / REMOVED ASSOCIATES — '+mdy(W.sun)+' to '+mdy(W.sat),{h:'left',color:'FFFFFFFF',fill:'FFC0392B',sz:13});row+=2;
+  const top=row;['DATE','EMPLOYEE','EMP #','DEPT','LINE','REASON','PUNCHES','REG','OT','DT','HRS','BILLING'].forEach((h2,i)=>xSet(ws,C[i]+row,h2,{fill:G}));row++;
+  const r1=row;
+  L.forEach(x=>{[DAYS[x.d.getDay()]+' '+mdy(x.d).slice(0,5),x.name,x.emp,x.dept,x.line,x.why,x.io,+x.reg.toFixed(2),+x.ot.toFixed(2),+x.dt.toFixed(2),+x.hrs.toFixed(2),+x.pay.toFixed(2)]
+    .forEach((v,i)=>xSet(ws,C[i]+row,v,{b:false,h:i===1||i===5||i===6?'left':'center',fmt:i===11?XC.$:i>=7?XC.h:undefined}));row++});
+  ws.mergeCells(`A${row}:G${row}`);xSet(ws,'A'+row,`TOTAL — ${new Set(L.map(x=>x.name)).size} associates`,{fill:Y});
+  ['H','I','J','K','L'].forEach((c,i)=>xSet(ws,c+row,F(`SUM(${c}${r1}:${c}${row-1})`,+L.reduce((a,x)=>a+[x.reg,x.ot,x.dt,x.hrs,x.pay][i],0).toFixed(2)),{fmt:i===4?XC.$:XC.h,fill:Y}));
+  xBox(ws,top,1,row,12);
+  const buf=await wb.xlsx.writeBuffer();
+  const code=(t.replace(/^MULTI-SITE.*/,'MULTI')||siteLbl()).replace(/[^\w]/g,'');
+  await saveFile(`${code}_DELETED_ASSOCIATES_W.E._${mdy(W.sat)}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
+async function exportLost(){
+  if(typeof ExcelJS==='undefined')return alert('Excel library did not load — check your internet connection and reload.');
+  const W=weekFiles(),X=lostHours(W),t=siteTitle(),wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('LOST HOURS',{views:[{showGridLines:false}],properties:{tabColor:{argb:'FFC0392B'}},pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  xHeader(wb,ws,t,'W.E. '+mdy(W.sat));
+  [11,26,9,15,34,11,11,11,13,13].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const G='FFE7E6E6',Y='FFFFF2CC';
+  let row=7;ws.mergeCells(`A${row}:I${row}`);xSet(ws,'A'+row,'LOST HOURS REPORT — '+mdy(W.sun)+' to '+mdy(W.sat),{h:'left',color:'FFFFFFFF',fill:'FFC0392B',sz:13});row+=2;
+  // by reason
+  const kinds=Object.keys(X.byKind).sort((a,b)=>LOST_ORDER.indexOf(a)-LOST_ORDER.indexOf(b));
+  const top=row;['REASON','PEOPLE','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,['A','C','D','E'][i]+row,h2,{fill:G}));ws.mergeCells(`A${row}:B${row}`);row++;
+  const k1=row;kinds.forEach(k=>{const g=X.byKind[k];ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,k,{h:'left',b:false});xSet(ws,'C'+row,g.n.size,{b:false});xSet(ws,'D'+row,+g.hrs.toFixed(2),{fmt:XC.h,b:false});xSet(ws,'E'+row,+g.pay.toFixed(2),{fmt:XC.$,b:false});row++});
+  ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});xSet(ws,'C'+row,X.people,{fill:Y});
+  xSet(ws,'D'+row,F(`SUM(D${k1}:D${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'E'+row,F(`SUM(E${k1}:E${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top,1,row,5);row+=2;
+  // by line
+  const top2=row;['LINE','PEOPLE','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,['A','C','D','E'][i]+row,h2,{fill:G}));ws.mergeCells(`A${row}:B${row}`);row++;
+  const l1=row;BUCKETS.filter(b=>X.byLine[b]).forEach(b=>{const g=X.byLine[b];ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,b,{h:'left',b:false});xSet(ws,'C'+row,g.n.size,{b:false});xSet(ws,'D'+row,+g.hrs.toFixed(2),{fmt:XC.h,b:false});xSet(ws,'E'+row,+g.pay.toFixed(2),{fmt:XC.$,b:false});row++});
+  ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});xSet(ws,'C'+row,X.people,{fill:Y});
+  xSet(ws,'D'+row,F(`SUM(D${l1}:D${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'E'+row,F(`SUM(E${l1}:E${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top2,1,row,5);row+=2;
+  // detail
+  const top3=row;['DATE','EMPLOYEE','DEPT','LINE','REASON','PUNCH HRS','BILLED HRS','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,'ABCDEFGHI'[i]+row,h2,{fill:G}));row++;
+  const d1=row;
+  X.L.forEach(x=>{const v=[DAYS[x.d.getDay()]+' '+mdy(x.d).slice(0,5),x.name,x.dept,x.line,x.why,+x.punch.toFixed(2),+x.billed.toFixed(2),+x.hrs.toFixed(2),+x.pay.toFixed(2)];
+    v.forEach((val,i)=>xSet(ws,'ABCDEFGHI'[i]+row,val,{b:false,h:i===1||i===4?'left':'center',fmt:i===8?XC.$:i>=5?XC.h:undefined}));row++});
+  if(!X.L.length){ws.mergeCells(`A${row}:I${row}`);xSet(ws,'A'+row,'No hours taken off this week.',{b:false});row++}
+  ws.mergeCells(`A${row}:G${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});
+  xSet(ws,'H'+row,F(`SUM(H${d1}:H${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'I'+row,F(`SUM(I${d1}:I${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top3,1,row,9);
+  const buf=await wb.xlsx.writeBuffer();
+  const code=(t.replace(/^MULTI-SITE.*/,'MULTI')||siteLbl()).replace(/[^\w]/g,'');
+  await saveFile(`${code}_LOST_HOURS_W.E._${mdy(W.sat)}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
 /* ---------- HANDSHAKE: Active Count vs Handshake HC, Report Hrs vs Handshake Hrs → deduct ---------- */
 function priced(fn){NODED=true;reprice();const a=fn();NODED=false;reprice();return a}
 const hsv=(k,b,fl)=>{const v=((S.inputs[k]||{})[b]||{})[fl];return v===''||v==null?null:num(v)};
@@ -634,6 +816,23 @@ function hsDeduct(f){
   });
   f.ded=ded;f.dedRes=res;render();
 }
+function delImpact(files){ // what deleted people would have billed (each person's OT stands alone)
+  NODEL=true;reprice();
+  const out=files.map(f=>{const L=f?f.rows.filter(r=>((f.fix||{})[r.i]||{}).del).map(r=>({i:r.i,name:r.name,bucket:r.bucket,hrs:r.tot,reg:r.reg,ot:r.ot,dt:r.dt||0,pay:r.pay})):[];
+    return{list:L,hrs:L.reduce((a,x)=>a+x.hrs,0),pay:L.reduce((a,x)=>a+x.pay,0),n:new Set(L.map(x=>x.name)).size}});
+  NODEL=false;reprice();return out;
+}
+function delPanel(f){
+  const D=delImpact([f])[0];if(!D.list.length)return'';
+  const by={};D.list.forEach(x=>{const g=by[x.bucket]=by[x.bucket]||{n:new Set(),hrs:0,pay:0};g.n.add(x.name);g.hrs+=x.hrs;g.pay+=x.pay});
+  return`<h3>Deleted</h3><div class="mvbox" style="display:block;border-color:#f3b4b0">
+   <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline"><b class="neg">${D.n} ${D.n===1?'person':'people'} deleted</b><span><b class="neg">−${f2(D.hrs)}</b> hrs</span><span><b class="neg">−${$m(D.pay)}</b> billing</span>
+    <span class="noprint" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="mini" data-xdel="1">📋 EXPORT DELETED LIST</button><button class="mini" data-act="undellast" data-f="${f.key}">UNDO LAST DELETE</button><button class="mini x" data-act="undelall" data-f="${f.key}">UNDO ALL DELETES</button></span></div>
+   <div class="scroll" style="margin-top:6px"><table class="itbl"><thead><tr><th>Line</th><th>People</th><th>Hrs</th><th>Billing</th></tr></thead><tbody>
+   ${BUCKETS.filter(b=>by[b]).map(b=>`<tr><td style="text-align:left"><b>${b}</b></td><td>${by[b].n.size}</td><td>${f2(by[b].hrs)}</td><td class="neg">−${$m(by[b].pay)}</td></tr>`).join('')}
+   <tr class="tot"><td>TOTAL DELETED</td><td>${D.n}</td><td>${f2(D.hrs)}</td><td class="neg">−${$m(D.pay)}</td></tr></tbody></table></div>
+   <div class="hint">Deleted people are left off every report and export.</div></div>`;
+}
 function hsPanel(f){
   const k=f.key;
   const A0=priced(()=>agg(rowsFor(f))),A1=agg(rowsFor(f));
@@ -657,9 +856,9 @@ function hsPanel(f){
   if(applied&&f.dedRes){const x=f.dedRes,parts=[];
     if(x.removed)parts.push(`removed ${x.removed} associate${x.removed>1?'s':''} (${f2(x.removedH)} hrs)`);
     if(x.trimH)parts.push(`trimmed ${f2(x.trimH)} hrs across ${x.trimN} associate${x.trimN>1?'s':''}`);
-    const list=f.rows.filter(r=>(f.ded||{})[r.i]>0).sort((a,b)=>a.bucket.localeCompare(b.bucket)||a.name.localeCompare(b.name));
+    const list=f.rows.filter(r=>(f.ded||{})[r.i]>0&&!r.removed).sort((a,b)=>a.bucket.localeCompare(b.bucket)||a.name.localeCompare(b.name));
     h+=`<div class="plan"><b>${parts.length?parts.join(' · '):'Nothing to deduct.'}</b> · billing −${$m(T.d)}${x.left.length?`<div class="warn" style="margin:6px 0 0">${x.left.map(esc).join('<br>')}</div>`:''}
-     ${list.length?`<details style="margin-top:6px"><summary>Who was deducted (${list.length})</summary><div class="in"><table><thead><tr><th>Employee</th><th>Line</th><th>Punch Hrs</th><th>Deducted</th><th>Billed Hrs</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(r.name)}</td><td style="text-align:left">${r.bucket}</td><td>${f2(r.base)}</td><td class="neg">−${f2(f.ded[r.i])}${r.removed?' <span class="tag rm">removed</span>':''}</td><td>${f2(r.hrs)}</td></tr>`).join('')}</tbody></table></div></details>`:''}</div>`}
+     ${list.length?`<details style="margin-top:6px"><summary>Who was trimmed (${list.length})</summary><div class="in"><table><thead><tr><th>Employee</th><th>Line</th><th>Punch Hrs</th><th>Deducted</th><th>Billed Hrs</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(r.name)}</td><td style="text-align:left">${r.bucket}</td><td>${f2(r.base)}</td><td class="neg">−${f2(f.ded[r.i])}${r.removed?' <span class="tag rm">removed</span>':''}</td><td>${f2(r.hrs)}</td></tr>`).join('')}</tbody></table></div></details>`:''}</div>`}
   else if(applied)h+=`<div class="plan"><b>Deductions applied.</b> · billing −${$m(T.d)}</div>`;
   return h+'</div>';
 }
@@ -673,6 +872,7 @@ function dayView(f){
   if(neg.length)h+=`<div class="warn"><b>${neg.length} negative-hour correction row(s)</b> included in totals: ${neg.slice(0,8).map(r=>esc(r.name)+' ('+esc(r.dept)+' '+f2(r.tot)+')').join(', ')}${neg.length>8?'…':''}</div>`;
   h+=`<div class="sheet">`+repHead(f.single?mdy(f.start):mdy(f.start)+' – '+mdy(f.end))+sumTable(f.key,A)+`</div>`;
   h+=hsPanel(f);
+  h+=delPanel(f);
   h+=issuePanel(f);
   h+=`<h3>Notes</h3><textarea data-k="${f.key}" placeholder="Notes for this day…">${esc((S.inputs[f.key]||{})._notes||'')}</textarea>`;
   h+=deptDetail(rows,rawFor(f))+empDetail(rows,f);
@@ -686,7 +886,7 @@ function deptDetail(rows,raw){
   return`<details ${moved?'open':''}><summary>Department breakdown (${ks.length})${moved?' — showing moved hours':''}</summary><div class="in"><table><thead><tr><th>Department</th><th>Bucket</th><th>Count</th><th>Reg</th><th>OT</th><th>DT</th>${moved?'<th>Timecard Hrs</th><th>Moved</th>':''}<th>Total</th><th>Billing</th></tr></thead><tbody>${ks.map(k=>{const x=m[k],d=x.tot-x.o;return`<tr><td>${esc(k)}</td><td style="text-align:left">${x.b}</td><td>${x.n.size}</td><td>${hr(x.reg)}</td><td class="${x.ot?'ot':''}">${hr(x.ot)}</td><td>${hr(x.dt)}</td>${moved?`<td>${hr(x.o)}</td><td class="${d>.001?'pos':d<-.001?'neg':''}">${Math.abs(d)>.001?(d>0?'+':'')+f2(d):'–'}</td>`:''}<td><b>${hr(x.tot)}</b></td><td>${$m(x.pay)}</td></tr>`}).join('')}</tbody></table></div></details>`;
 }
 function empDetail(rows,f){
-  const s=rows.filter(r=>!r.adj).sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
+  const s=rows.filter(r=>!r.adj&&!r.deleted&&!r.removed).sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
   return`<details ${f&&S.openEmp===f.key?'open':''} data-emp="${f?f.key:''}"><summary>Timecard detail (${s.length} rows) — ✎ edit hours / rate · 🗑 delete a person</summary><div class="in"><input class="flt" placeholder="Filter name / dept…" data-flt value="${esc(S.flt||'')}"><table><thead><tr><th>Employee</th><th>Department</th><th>Punches</th><th>Reg</th><th>OT</th><th>DT</th><th>Total</th><th>Total Pay</th>${f?'<th class="noprint">Edit</th>':''}</tr></thead><tbody>${s.map(r=>`<tr class="${r.moved?'mv':''}" data-q="${esc((r.name+' '+r.dept).toLowerCase())}"><td>${esc(r.name)}</td><td style="text-align:left">${esc(r.dept)}${r.moved?` <span class="tag">from ${esc(r.from)}</span>`:''}${r.touched?' <span class="tag t2">partly moved</span>':''}${r.removed?' <span class="tag rm">removed — handshake</span>':''}${r.trimmed?` <span class="tag rm">−${f2(r.trimmed)} hrs handshake</span>`:''}${r.fixed?' <span class="tag">corrected</span>':''}${r.salary!=null?` <span class="tag">salary $${f2(r.salary)}/day</span>`:''}${r.savedRate?' <span class="tag">saved rate</span>':''}${r.i!=null&&!r.moved&&isNoRate(f.rows.find(x=>x.i===r.i)||r)&&!r.pay?' <span class="tag rm">no bill rate</span>':''}${r.deleted?' <span class="tag rm">deleted</span>':''}${r.added?` <span class="tag">+${f2(r.added)} hrs</span>`:''}</td><td style="text-align:left;font-size:11px;color:var(--mute)">${esc(r.io||'')}</td><td class="${r.reg<0?'neg':''}">${hr(r.reg)}</td><td class="${r.ot?'ot':''}">${hr(r.ot)}${r.wkOT?' <span class="tag t2">40+</span>':''}</td><td class="${r.dt?'neg':''}">${hr(r.dt||0)}</td><td class="${r.tot<0?'neg':''}">${hr(r.tot)}</td><td>${$m(r.pay)}</td>${f?`<td class="noprint">${r.i!=null&&!r.moved?(r.deleted?`<button class="mini" data-act="undel" data-f="${f.key}" data-i="${r.i}" title="Put this person back">RESTORE</button>`:`<button class="mini" data-act="edit" data-f="${f.key}" data-i="${r.i}" title="Edit hours / rate">✎</button> <button class="mini x" data-act="del" data-f="${f.key}" data-i="${r.i}" title="Delete this person from this day">🗑</button>`):''}</td>`:''}</tr>`).join('')}</tbody></table></div></details>`;
 }
 function deptOptions(f){
@@ -697,15 +897,35 @@ function beforeRows(f){return f.rows.map(r=>fixRow(f,r)).filter(r=>S.sites.has(r
 function act(d){
   const f=S.files.find(x=>x.key===d.f);if(!f)return;
   if(d.act==='hsded')return hsDeduct(f);
+  if(d.act==='openfill'){const t=document.getElementById('openOut_'+f.key).value,ml=num(document.getElementById('openMeal_'+f.key).value);S.openOut=t;S.openMeal=String(ml);
+    const m=t.match(/^(\d{1,2}):(\d{2})$/);if(!m)return alert('Pick an OUT time first.');const out=(+m[1])*60+(+m[2]);let n=0;f.fix=f.fix||{};
+    f.rows.forEach(r=>{if(!r.open||!r.open.length||r.deleted)return;const x=f.fix[r.i]||{};if(x.hrs!=null&&x.hrs!==''&&!x.openFill)return;
+      const add=r.open.reduce((a,inn)=>a+((out-inn+1440)%1440)/60,0);const hrs=Math.max(0,+(r.raw+add-(add>6?ml/60:0)).toFixed(2));
+      f.fix[r.i]={...x,hrs:String(hrs),openFill:t};n++});
+    alert(`Filled ${n} open punch${n===1?'':'es'} with OUT ${t}${ml?` less ${ml} min meal (shifts over 6 hrs)`:''}.`);return render()}
+  if(d.act==='openclr'){Object.keys(f.fix||{}).forEach(i=>{const x=f.fix[i];if(x&&x.openFill){delete x.hrs;delete x.openFill;if(!Object.keys(x).length)delete f.fix[i]}});return render()}
   if(d.act==='hsundo'){f.ded={};f.dedRes=null;return render()}
+  if(d.act==='lunchok'||d.act==='lunchded'||d.act==='lunchundo'||d.act==='lunchdedall'){f.fix=f.fix||{};
+    const ded=r=>{const x={...(f.fix[r.i]||{})};if(x.lunchDed!=null)return;const base=x.hrs!=null&&x.hrs!==''?num(x.hrs):r.raw;x.hrs=String(Math.max(0,+(base-.5).toFixed(2)));x.lunchDed=30;f.fix[r.i]=x};
+    if(d.act==='lunchdedall'){const I=issues(f);I.lunch.filter(x=>x.kind==='none'&&!I.ldone(x)).forEach(x=>ded(x.main));return render()}
+    const r=f.rows.find(x=>x.i===+d.i);if(!r)return;const x={...(f.fix[r.i]||{})};
+    if(d.act==='lunchok')x.lunchOk=true;
+    if(d.act==='lunchded'){f.fix[r.i]=x;ded(r);return render()}
+    if(d.act==='lunchundo'){if(x.lunchDed!=null){const base=num(x.hrs)+x.lunchDed/60;delete x.lunchDed;if(Math.abs(base-r.raw)<.005)delete x.hrs;else x.hrs=String(+base.toFixed(2))}delete x.lunchOk}
+    if(Object.keys(x).length)f.fix[r.i]=x;else delete f.fix[r.i];return render()}
   if(d.act==='fixok'){f.fix=f.fix||{};f.fix[+d.i]={...(f.fix[+d.i]||{}),ok:true};return render()}
   if(d.act==='fixclr'){const r=f.rows.find(x=>x.i===+d.i);if(f.fix)delete f.fix[+d.i];if(r&&isNoRate(r)&&RATES[rkey(r)]){delete RATES[rkey(r)];saveRates()}return render()}
   if(d.act==='fillrate'){const I=issues(f);f.fix=f.fix||{};let n=0;I.norate.filter(x=>!I.rdone(x)).forEach(x=>{const dr=deptRate(x.r.dept);if(dr){f.fix[x.r.i]={...(f.fix[x.r.i]||{}),rate:dr.toFixed(2)};n++}});if(!n)alert('No dept average available for these departments — enter rates by hand.');return render()}
   if(d.act==='edit')return editRow(f,+d.i);
+  if(d.act==='undelall'||d.act==='undellast'){const fx=f.fix||{};const ks=Object.keys(fx).filter(i=>fx[i]&&fx[i].del);if(!ks.length)return;
+    const last=Math.max(...ks.map(i=>fx[i].delAt||0)),pick=d.act==='undelall'?ks:ks.filter(i=>(fx[i].delAt||0)===last);
+    const go=()=>{pick.forEach(i=>{const o={...fx[i]};delete o.del;delete o.delAt;if(Object.keys(o).length)fx[i]=o;else delete fx[i]});render()};
+    return d.act==='undelall'?ask(`Put back all ${new Set(pick.map(i=>nkey(f.rows.find(r=>r.i==i)))).size} deleted people for ${label(f)}?`,'UNDO ALL',go):go()}
   if(d.act==='del'||d.act==='undel'){const r=f.rows.find(x=>x.i===+d.i);if(!r)return;const same=f.rows.filter(x=>nkey(x)===nkey(r));
-    const go=()=>{f.fix=f.fix||{};same.forEach(x=>{const o={...(f.fix[x.i]||{})};if(d.act==='del')o.del=true;else delete o.del;if(Object.keys(o).length)f.fix[x.i]=o;else delete f.fix[x.i]});render()};
+    const go=()=>{f.fix=f.fix||{};const at=Date.now();same.forEach(x=>{const o={...(f.fix[x.i]||{})};if(d.act==='del'){o.del=true;o.delAt=at}else{delete o.del;delete o.delAt}if(Object.keys(o).length)f.fix[x.i]=o;else delete f.fix[x.i]});render()};
     if(d.act==='undel')return go();
-    return ask(`Delete ${r.name} from ${label(f)}?\n${f2(same.reduce((a,x)=>a+(x.hrs||0),0))} hrs come off the report. You can RESTORE them from Timecard detail.`,'DELETE',go)}
+    const sh=same.reduce((a,x)=>a+(x.tot||0),0),sp=same.reduce((a,x)=>a+(x.pay||0),0);
+    return ask(`Delete ${r.name} from ${label(f)}?\n−${f2(sh)} hrs · −${$m(sp)} billing\nUse UNDO LAST DELETE in the Deleted box to put them back.`,'DELETE',()=>{go();alert(`Deleted ${r.name}: −${f2(sh)} hrs · −${$m(sp)}`)})}
 }
 function weekAgg(W){
   const fs=W.days.filter(x=>x.f).map(x=>x.f);
@@ -723,7 +943,7 @@ function summaryView(W){
   if(!src.length)return ratePanel()+'<p>No data for this week.</p>';
   let h=ratePanel()+`<div class="sheet">`+repHead('W.E. '+mdy(W.sat));
   const iss=W.days.filter(x=>x.f).map(x=>({d:x.d,I:issues(x.f)})).filter(x=>x.I.openP||x.I.openR||x.I.openL);
-  if(iss.length)h+=`<div class="warn noprint"><b>Open timecard issues:</b> ${iss.map(x=>`${DAYS[x.d.getDay()]} ${mdy(x.d).slice(0,5)} — ${[x.I.openP?x.I.openP+' missed punch':'',x.I.openR?x.I.openR+' no bill rate':'',x.I.openL?x.I.openL+' lead(s) with no $':''].filter(Boolean).join(', ')}`).join(' · ')}</div>`;
+  if(iss.length)h+=`<div class="warn noprint"><b>Open timecard issues:</b> ${iss.map(x=>`${DAYS[x.d.getDay()]} ${mdy(x.d).slice(0,5)} — ${[x.I.openP?x.I.openP+' missed punch':'',x.I.openR?x.I.openR+' no bill rate':'',x.I.openL?x.I.openL+' lunch issue'+(x.I.openL>1?'s':''):''].filter(Boolean).join(', ')}`).join(' · ')}</div>`;
   h+=`<div class="rsub">${mdy(W.sun)} – ${mdy(W.sat)} · ${W.days.filter(x=>x.f).length} of 7 days loaded${W.ranges.length?' · period file':''}</div>`;
   h+=sumTable(k,A,{ro,cnt,inv:true});
   h+=`<h3>Daily Hours / Billing</h3><div class="scroll"><table class="orig"><thead><tr><th>Line</th>${W.days.map(x=>`<th>${DAYS[x.d.getDay()]}<br>${mdy(x.d).slice(0,5)}</th>`).join('')}<th>Week</th></tr></thead><tbody>`;
@@ -737,6 +957,11 @@ function summaryView(W){
     const dh=pre.map((q,n)=>q?q.t.tot-per[n].t.tot:0),d$=pre.map((q,n)=>q?q.t.pay-per[n].t.pay:0),sh=dh.reduce((a,b)=>a+b,0),s$=d$.reduce((a,b)=>a+b,0);
     h+=`<tr><td><b>HANDSHAKE DEDUCTED HRS</b></td>${dh.map(v=>`<td class="${v>.001?'neg':''}">${v>.001?'−'+f2(v):''}</td>`).join('')}<td class="neg"><b>${sh>.001?'−'+f2(sh):'–'}</b></td></tr>`;
     h+=`<tr><td><b>HANDSHAKE DEDUCTED $</b></td>${d$.map(v=>`<td class="${v>.005?'neg':''}">${v>.005?'−'+$m(v):''}</td>`).join('')}<td class="neg"><b>${s$>.005?'−'+$m(s$):'–'}</b></td></tr>`;
+  }
+  if(W.days.some(x=>x.f&&Object.values(x.f.fix||{}).some(z=>z&&z.del))){
+    const D=delImpact(W.days.map(x=>x.f||null)),th=D.reduce((a,x)=>a+x.hrs,0),tp=D.reduce((a,x)=>a+x.pay,0);
+    h+=`<tr><td><b>DELETED HRS</b></td>${D.map(x=>`<td class="${x.hrs>.001?'neg':''}">${x.hrs>.001?'−'+f2(x.hrs):''}</td>`).join('')}<td class="neg"><b>${th>.001?'−'+f2(th):'–'}</b></td></tr>`;
+    h+=`<tr><td><b>DELETED $</b></td>${D.map(x=>`<td class="${x.pay>.005?'neg':''}">${x.pay>.005?'−'+$m(x.pay):''}</td>`).join('')}<td class="neg"><b>${tp>.005?'−'+$m(tp):'–'}</b></td></tr>`;
   }
   h+=`</tbody></table></div>`;
   h+=`<h3>Notes</h3><textarea class="notes" data-k="${k}" placeholder="Week notes…">${esc((S.inputs[k]||{})._notes||'')}</textarea></div>`;
@@ -829,7 +1054,7 @@ function xDetail(ws,row,f){
   const cols=[['A','D','EMPLOYEE NAME'],['E','H','DEPARTMENT'],['I','J','LINE'],['K','L','REG'],['M','M','OT'],['N','N','DT'],['O','O','TOTAL'],['P','P','TOTAL PAY'],['Q','S','ADJUSTMENT']];
   cols.forEach(([a,b,t])=>{if(a!==b)ws.mergeCells(`${a}${row}:${b}${row}`);xSet(ws,a+row,t,{fill:'FFE7E6E6'});ws.getCell(a+row).border={top:THIN,bottom:THIN,left:THIN,right:THIN}});
   row++;
-  const rows=rowsFor(f).slice().sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
+  const rows=rowsFor(f).filter(r=>!r.removed&&!r.deleted).sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
   rows.forEach(r=>{
     const src=r.i!=null?f.rows.find(x=>x.i===r.i):null;
     const fixNote=r.fixed?'Corrected'+(src&&punchWhy(f,src)?' ('+punchWhy(f,src)+')':'')+(src&&isNoRate(src)?' rate $'+r.rateUsed.toFixed(2):''):r.savedRate?'Saved rate $'+r.rateUsed.toFixed(2):'';
@@ -985,13 +1210,50 @@ function backupFile(){saveFile('TikTok_WE_Backup_'+iso(new Date())+'.json',JSON.
 /* ---------- Google shared file (optional, for Netlify) ---------- */
 const SHARED_DEFAULT=''; // paste the Apps Script /exec URL here to build it in for everyone
 let SHARED_URL=(()=>{try{return localStorage.getItem('tt_shared_url')||SHARED_DEFAULT}catch(e){return SHARED_DEFAULT}})();
-let NETLIFY=false,NETDIAG=''; // true when this site's own /api/state save function answers (GitHub-connected Netlify)
-async function sharedGet(){const r=await fetch(SHARED_URL+(SHARED_URL.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();try{return JSON.parse(t||'{}')}catch(e){throw new Error(NETLIFY?'save function returned a page, not data':'not the shared-save script — check the URL and that access is "Anyone"')}}
-async function sharedPost(obj){const r=await fetch(SHARED_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(obj)});if(!r.ok)throw new Error('HTTP '+r.status);const j=JSON.parse(await r.text());if(!j.ok)throw new Error(j.error||'save failed');return j}
+let NETLIFY=false,NETDIAG='';
+/* ---------- GITHUB SAVE: one JSON file in a GitHub repo, read/written with the GitHub Contents API ----------
+   Fill these in once (in GitHub's editor) and everyone who opens the page saves to the same file.
+   token = a fine-grained personal access token limited to ONLY the data repo, permission "Contents: Read and write". */
+const GITHUB_SAVE={owner:'',repo:'',branch:'',path:'tiktok_we_state.json',token:''};
+let GH=(()=>{const ok=o=>o&&o.owner&&o.repo&&o.token;try{const o=JSON.parse(localStorage.getItem('tt_gh')||'null');if(ok(o))return{...GITHUB_SAVE,...o}}catch(e){}return ok(GITHUB_SAVE)?{...GITHUB_SAVE}:null})();
+let GH_SHA=null;
+const ghURL=()=>`https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}/contents/${(GH.path||'tiktok_we_state.json').split('/').map(encodeURIComponent).join('/')}`;
+const ghRef=()=>GH.branch?'ref='+encodeURIComponent(GH.branch)+'&':'';
+const ghH=acc=>({Authorization:'Bearer '+GH.token,Accept:acc||'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'});
+const b64e=str=>{const b=new TextEncoder().encode(str);let o='';for(let i=0;i<b.length;i+=0x8000)o+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(o)};
+const b64d=str=>new TextDecoder().decode(Uint8Array.from(atob(str.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+function ghErr(r,what){
+  if(r.status===401)return new Error('GitHub token was rejected — it may have expired. Make a new one and update ⚙ SHARED.');
+  if(r.status===403)return new Error('GitHub refused access — the token needs "Contents: Read and write" on '+GH.owner+'/'+GH.repo+'.');
+  if(r.status===404)return new Error('GitHub repo '+GH.owner+'/'+GH.repo+(GH.branch?' (branch '+GH.branch+')':'')+' not found, or the token can\'t see it.');
+  return new Error('GitHub '+what+' failed ('+r.status+')');
+}
+async function ghGet(){
+  const r=await fetch(ghURL()+'?'+ghRef()+'t='+Date.now(),{headers:ghH(),cache:'no-store'});
+  if(r.status===404){ // file not made yet — check the repo itself is reachable
+    const rr=await fetch(`https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}`,{headers:ghH(),cache:'no-store'});
+    if(!rr.ok)throw ghErr(rr,'load');GH_SHA=null;return{};
+  }
+  if(!r.ok)throw ghErr(r,'load');
+  const j=await r.json();GH_SHA=j.sha;
+  if(j.encoding==='base64'&&j.content)return JSON.parse(b64d(j.content)||'{}');
+  const r2=await fetch(ghURL()+'?'+ghRef()+'t='+Date.now(),{headers:ghH('application/vnd.github.raw+json'),cache:'no-store'}); // files over 1 MB
+  if(!r2.ok)throw ghErr(r2,'load');const t=await r2.text();return JSON.parse(t||'{}');
+}
+async function ghPut(obj){
+  const body={message:'TikTok W.E. save · '+new Date().toLocaleString(),content:b64e(JSON.stringify(obj))};
+  if(GH_SHA)body.sha=GH_SHA;if(GH.branch)body.branch=GH.branch;
+  const r=await fetch(ghURL(),{method:'PUT',headers:{...ghH(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===409||(r.status===422&&!GH_SHA)||(r.status===422&&/sha/i.test(await r.clone().text()))){const e=new Error('someone else saved at the same moment');e.conflict=true;throw e}
+  if(!r.ok)throw ghErr(r,'save');
+  const j=await r.json();GH_SHA=j.content&&j.content.sha;return{ok:true};
+} // true when this site's own /api/state save function answers (GitHub-connected Netlify)
+async function sharedGet(){if(GH)return ghGet();const r=await fetch(SHARED_URL+(SHARED_URL.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();try{return JSON.parse(t||'{}')}catch(e){throw new Error(NETLIFY?'save function returned a page, not data':'not the shared-save script — check the URL and that access is "Anyone"')}}
+async function sharedPost(obj){if(GH)return ghPut(obj);const r=await fetch(SHARED_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(obj)});if(!r.ok)throw new Error('HTTP '+r.status);const j=JSON.parse(await r.text());if(!j.ok)throw new Error(j.error||'save failed');return j}
 async function sharedLoad(quiet){
   if(!SHARED_URL)return;setStat('⟳ loading shared data…');
   try{const d=norm(await sharedGet());if(d){PUBLISHED=d;apply(merge(d,payload()));render()}else if(!PUBLISHED){PUBLISHED={savedAt:new Date(0).toISOString()};saveNow()}
-    setStat(d?(unsaved()?'● unsaved changes — hit SAVE so everyone sees them':`✓ up to date · saved ${hhmm(d.savedAt)}`):(NETLIFY?'✓ connected — nothing saved yet':'shared save connected — nothing saved yet'),unsaved());
+    setStat(d?(unsaved()?'● unsaved changes — hit SAVE so everyone sees them':`✓ up to date · saved ${hhmm(d.savedAt)}`):(GH?`✓ GitHub connected (${GH.owner}/${GH.repo}) — nothing saved yet`:NETLIFY?'✓ connected — nothing saved yet':'shared save connected — nothing saved yet'),unsaved());
     if(!quiet)alert('Loaded latest shared data.');
   }catch(e){setStat('⚠ shared load failed — '+e.message,true)}
 }
@@ -1000,16 +1262,18 @@ let AUTO_T=null,SYNCING=false;
 async function sharedSave(quiet){
   if(SYNCING){if(!quiet)alert('Already saving — one moment.');return}
   SYNCING=true;setStat(quiet?'⟳ auto-saving…':'⟳ saving…');
-  try{const cur=norm(await sharedGet());if(cur){apply(merge(cur,payload()));render()}
-    const p=payload();await sharedPost(p);PUBLISHED=p;SYNCING=false;saveNow();
-    const n=p.days.files.length;setStat(`✓ saved for everyone ${hhmm(p.savedAt)} · ${n} day${n===1?'':'s'}`);
+  try{let p;for(let tries=0;;tries++){
+      const cur=norm(await sharedGet());if(cur){apply(merge(cur,payload()));render()}
+      p=payload();try{await sharedPost(p);break}catch(e){if(!e.conflict||tries>=2)throw e}}
+    PUBLISHED=p;SYNCING=false;saveNow();
+    const n=p.days.files.length;setStat(`✓ saved for everyone ${hhmm(p.savedAt)} · ${n} day${n===1?'':'s'}${GH?' · GitHub':''}`);
     if(!quiet)alert(`✓ Saved — everyone with the link now sees ${n} day${n===1?'':'s'}.`);
   }catch(e){SYNCING=false;setStat('⚠ save failed — '+e.message+(quiet?' · will retry':''),true);
     if(!quiet)alert('Save failed: '+e.message+'. Your data is still kept in this browser — try again.');else{clearTimeout(AUTO_T);AUTO_T=setTimeout(autoSync,30000)}}
 }
 function autoSync(){ // GitHub/Netlify (or Google) save server: push changes a few seconds after they stop
   if(!SHARED_URL||ART)return;clearTimeout(AUTO_T);
-  AUTO_T=setTimeout(()=>{if(unsaved()&&!SYNCING)sharedSave(true)},2500);
+  AUTO_T=setTimeout(()=>{if(unsaved()&&!SYNCING)sharedSave(true)},GH?8000:2500);
 }
 async function saveAll(){
   if(ART){ // claude.ai: the page publishes its data — every viewer gets it
@@ -1037,23 +1301,36 @@ document.getElementById('btnSaveHtml').onclick=saveHTML;
 document.getElementById('btnBackup').onclick=backupFile;
 document.getElementById('btnShared').onclick=()=>{
   if(ART)return alert('On claude.ai, SAVE already saves the page for everyone — no setup needed.');
-  const dlg=document.getElementById('dlg');
-  dlg.innerHTML=`<div class="card"><h3 style="margin-top:0">SHARED SAVE (NETLIFY)</h3>
-    <p style="margin:0;color:var(--mute);font-size:13px">Paste the Google Apps Script web app URL (ends in <b>/exec</b>). Everyone using this page with the same URL shares the same days, rates and notes.</p>
-    <label>APPS SCRIPT URL<input id="shUrl" value="${esc(SHARED_URL)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
-    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:10px;flex-wrap:wrap"><span>${SHARED_URL?'<button id="shLoad">⟳ LOAD LATEST</button> <button class="mini x" id="shOff">DISCONNECT</button>':''}</span><span><button id="shNo">CANCEL</button> <button class="pri" id="shGo">CONNECT</button></span></div></div>`;
+  const g=GH||GITHUB_SAVE,dlg=document.getElementById('dlg');
+  dlg.innerHTML=`<div class="card" style="max-width:520px"><h3 style="margin-top:0">SHARED SAVE — GITHUB</h3>
+    <p style="margin:0 0 6px;color:var(--mute);font-size:13px">Saved data goes into one file in a GitHub repo. Everyone using the same settings sees the same days, rates and notes.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+     <label>OWNER (account / org)<input id="ghOwner" value="${esc(g.owner)}" placeholder="chuckdavid"></label>
+     <label>DATA REPO<input id="ghRepo" value="${esc(g.repo)}" placeholder="tiktok-we-data"></label>
+     <label>FILE<input id="ghPath" value="${esc(g.path||'tiktok_we_state.json')}"></label>
+     <label>BRANCH (blank = default)<input id="ghBranch" value="${esc(g.branch||'')}" placeholder="main"></label></div>
+    <label>TOKEN (fine-grained, this repo only, Contents: Read and write)<input id="ghTok" type="password" value="${esc(g.token)}" placeholder="github_pat_…"></label>
+    <div id="ghMsg" class="hint" style="margin-top:6px"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:10px;flex-wrap:wrap"><span>${GH?'<button id="shLoad">⟳ LOAD LATEST</button> <button class="mini x" id="shOff">DISCONNECT</button>':''}</span><span><button id="shNo">CANCEL</button> <button class="pri" id="shGo">TEST &amp; CONNECT</button></span></div>
+    ${GH&&!GITHUB_SAVE.token?`<details style="margin-top:8px"><summary style="font-size:12px">Make it built-in for everyone</summary><div class="hint">In GitHub, edit <b>index.html</b>, find the line starting with <code>const GITHUB_SAVE=</code> and replace it with the line below. Then nobody has to type these settings.</div><textarea id="ghLine" readonly style="width:100%;height:58px;font:11px monospace">const GITHUB_SAVE=${esc(JSON.stringify({owner:g.owner,repo:g.repo,branch:g.branch||'',path:g.path||'tiktok_we_state.json',token:g.token}))};</textarea><button class="mini" id="ghCopy">COPY LINE</button></details>`:''}</div>`;
   dlg.style.display='flex';const close=()=>{dlg.style.display='none'};
   document.getElementById('shNo').onclick=close;dlg.onclick=e=>{if(e.target===dlg)close()};
   const L=document.getElementById('shLoad');if(L)L.onclick=()=>{close();sharedLoad(false)};
-  const O=document.getElementById('shOff');if(O)O.onclick=()=>{SHARED_URL='';PUBLISHED=null;try{localStorage.setItem('tt_shared_url','')}catch(e){}close();btnLabels();saveNow()};
-  document.getElementById('shGo').onclick=()=>{const u=document.getElementById('shUrl').value.trim();
-    if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(u))return alert('That should be a script.google.com …/exec URL.');
-    SHARED_URL=u;try{localStorage.setItem('tt_shared_url',u)}catch(e){}close();btnLabels();sharedLoad(false)};
+  const C=document.getElementById('ghCopy');if(C)C.onclick=()=>{const t=document.getElementById('ghLine');t.select();try{navigator.clipboard.writeText(t.value).then(()=>alert('Copied.'),()=>{})}catch(e){}};
+  const O=document.getElementById('shOff');if(O)O.onclick=()=>{GH=null;GH_SHA=null;SHARED_URL='';PUBLISHED=null;try{localStorage.removeItem('tt_gh');localStorage.setItem('tt_shared_url','')}catch(e){}close();btnLabels();saveNow()};
+  document.getElementById('shGo').onclick=async()=>{
+    const v=id=>document.getElementById(id).value.trim(),cfg={owner:v('ghOwner'),repo:v('ghRepo'),path:v('ghPath')||'tiktok_we_state.json',branch:v('ghBranch'),token:v('ghTok')};
+    const m=document.getElementById('ghMsg');if(!cfg.owner||!cfg.repo||!cfg.token){m.innerHTML='<b class="neg">Owner, repo and token are all needed.</b>';return}
+    const keep=GH;GH=cfg;m.textContent='Checking GitHub…';
+    try{await ghGet();try{localStorage.setItem('tt_gh',JSON.stringify(cfg))}catch(e){}SHARED_URL='github:'+cfg.owner+'/'+cfg.repo;PUBLISHED=null;close();btnLabels();await sharedLoad(false)}
+    catch(e){GH=keep;m.innerHTML='<b class="neg">'+esc(e.message)+'</b>'}
+  };
 };
 function btnLabels(){
-  document.getElementById('btnSave').textContent=ART||NETLIFY?'SAVE':SHARED_URL?'SAVE (SHARED)':'SAVE';
-  document.getElementById('btnSave').title=ART||NETLIFY?'Save so everyone with the link sees it':SHARED_URL?'Save to the shared Google file':'Keep in this browser and download this page with the data inside';
-  document.getElementById('btnShared').hidden=!!(ART||NETLIFY);document.getElementById('btnPrint').hidden=!!window.claude;
+  document.getElementById('btnSave').textContent=ART||NETLIFY||GH?'SAVE':SHARED_URL?'SAVE (SHARED)':'SAVE';
+  document.getElementById('btnShared').textContent=GH?'⚙ GITHUB ✓':'⚙ SHARED';
+  document.getElementById('btnSave').title=ART||NETLIFY||GH?'Save so everyone with the link sees it':SHARED_URL?'Save to the shared Google file':'Keep in this browser and download this page with the data inside';
+  document.getElementById('btnShared').hidden=!!ART;document.getElementById('btnPrint').hidden=!!window.claude;
 }
 const _render=render;
 render=function(){reprice();_render();clearTimeout(saveT);saveT=setTimeout(saveNow,400)};
@@ -1076,8 +1353,9 @@ window.addEventListener('beforeunload',saveNow);
       saveNow();if(!unsaved()&&PUBLISHED)setStat(`✓ up to date · saved ${hhmm(PUBLISHED.savedAt)}`);
     }).catch(()=>{});
   }
+  if(GH&&!window.claude){SHARED_URL='github:'+GH.owner+'/'+GH.repo;btnLabels();sharedLoad(true);setInterval(()=>{if(!unsaved()&&!SYNCING&&document.visibilityState==='visible')sharedLoad(true)},60000)}
   // GitHub-connected Netlify: this site's own save function at /api/state
-  if(/^https?:$/.test(location.protocol)&&!window.claude){
+  else if(/^https?:$/.test(location.protocol)&&!window.claude){
     fetch('/api/state?probe=1',{cache:'no-store'}).then(async r=>{
       const ct=r.headers.get('content-type')||'';
       if(r.ok&&ct.includes('json')){NETLIFY=true;SHARED_URL='/api/state';btnLabels();await sharedLoad(true);setInterval(()=>{if(!unsaved()&&document.visibilityState==='visible')sharedLoad(true)},120000)}
