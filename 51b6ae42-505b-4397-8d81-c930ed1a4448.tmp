@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TikTok W.E. Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style id="tt-style">
+:root{
+  --bg:#f4f5f7; --panel:#fff; --ink:#16181d; --mute:#6b7280; --line:#e3e5ea;
+  --brand:#351c15; --accent:#f5b400; --good:#0f7b4b; --bad:#c0362c; --soft:#fafbfc;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:var(--brand);color:#fff;padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+header h1{font-size:17px;margin:0;letter-spacing:.5px;font-weight:700}
+header h1 span{color:var(--accent)}
+header .sp{flex:1}
+.savestat{font-size:12px;color:#c9f0d6;font-weight:600}.savestat.bad{color:#ffb4ab}
+header label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;opacity:.8;display:flex;flex-direction:column;gap:2px}
+header select,header input{background:#4a2a20;color:#fff;border:1px solid #6b4436;border-radius:6px;padding:5px 8px;font:inherit}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+button.pri{background:var(--accent);border-color:var(--accent);color:#1a1a1a}
+button:hover{filter:brightness(.96)}
+button:disabled{opacity:.45;cursor:not-allowed}
+header button{border-color:#6b4436;background:#4a2a20;color:#fff}
+header button.pri{background:var(--accent);color:#1a1a1a;border-color:var(--accent)}
+main{padding:16px 20px;max-width:1400px;margin:0 auto}
+#drop{border:2px dashed #b9bec8;border-radius:12px;background:var(--panel);text-align:center;padding:60px 20px;color:var(--mute);cursor:pointer;transition:.15s}
+#drop.small{padding:12px;font-size:13px}
+#drop.over{border-color:var(--accent);background:#fffbea;color:var(--ink)}
+#drop b{color:var(--ink);font-size:16px}
+#drop.small b{font-size:13px}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:12px;display:flex;gap:6px;align-items:center}
+.chip x{cursor:pointer;color:var(--bad);font-weight:700}
+.sitebar{display:none;flex-wrap:wrap;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0}
+.sitebar b{font-size:11px;letter-spacing:.6px;color:var(--brand);margin-right:4px}
+.sc{border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:700;font-size:13px;background:#f1f2f4;color:var(--mute);user-select:none;display:flex;flex-direction:column;line-height:1.15}
+.sc small{font-weight:500;font-size:10px}
+.unas{flex-basis:100%;font-size:12px;background:#fff4e5;border:1px solid #f5c27a;border-radius:6px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.unas select{font:inherit;padding:2px 4px}
+.sc.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.sc.all{background:#fff;color:var(--ink);justify-content:center}
+.mvbox{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.mvbox label,#dlg label{display:flex;flex-direction:column;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--mute);gap:3px}
+.mvbox select,.mvbox input,#dlg input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;min-width:200px;color:var(--ink)}
+.hint{font-size:12px;color:var(--mute);flex-basis:100%}
+.mini{padding:2px 8px;font-size:12px}
+.mini.x{color:var(--bad)}
+.tag{font-size:10px;background:#e0f2e9;color:var(--good);border-radius:4px;padding:1px 5px;font-weight:700}
+.issues{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:12px;margin-bottom:8px}
+.ibox{border:2px solid var(--line);border-radius:8px;background:#fff;padding:10px}
+.ibox.open{border-color:#f5c27a;background:#fffaf0}
+.ihd{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.ihd .cnt{font-size:12px;color:var(--mute)}.ihd .thr{font-size:12px;color:var(--mute);margin-left:auto}
+.ihd .thr input{width:44px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;font:inherit}
+.itbl td,.itbl th{font-size:12px;padding:4px 6px}
+.itbl th{background:var(--brand)}
+.itbl td:nth-child(2){text-align:left}
+.itbl td input{width:72px}
+tr.okrow td{background:#f0faf4}
+.bdg{display:inline-block;background:var(--bad);color:#fff;border-radius:9px;font-size:10px;padding:0 6px;margin-left:5px;vertical-align:middle}
+.netbox{background:#fff;border:2px solid var(--brand);border-radius:8px;padding:10px;margin:0 0 10px}
+.netbox tr.chg td{background:#fffbea}
+.tag.rm{background:#fde2e1;color:var(--bad)}
+.tag.t2{background:#fff3c4;color:#8a6100}
+.rb td input{width:80px}
+.rb .netok{color:var(--good);font-weight:800}.rb .netbad{color:var(--bad);font-weight:800}
+.plan{border:2px solid var(--accent);border-radius:8px;padding:10px;margin:8px 0;background:#fffdf3}
+.plan .bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+tr.mv td{background:#f3fbf6}
+table.log td{font-size:13px}
+table.log th:nth-child(2),details th:nth-child(2){text-align:left}
+.flt{margin:4px 0 8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:260px;font:inherit}
+#dlg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);align-items:center;justify-content:center;z-index:9}
+#dlg .card{background:#fff;border-radius:12px;padding:18px;width:min(420px,92vw);display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+#dlg input{min-width:0;width:100%}
+.sheet{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:12px}
+.rhead{display:grid;grid-template-columns:minmax(200px,1.6fr) 80px 1.4fr;grid-template-rows:auto auto;border:2px solid #000;margin-bottom:10px;max-width:900px}
+.rhead>div{border:1px solid #000;display:flex;align-items:center;justify-content:center;font-weight:700}
+.rlogo{grid-row:1/3;padding:8px 12px}.rlogo img{max-width:100%;max-height:78px}
+.rlab{font-size:12px}.rsite{font-size:28px;letter-spacing:.5px;padding:10px}.rdate{font-size:15px;padding:6px}
+.rsub{color:var(--mute);font-size:12px;margin:-4px 0 10px}
+table.orig{border:2px solid #000}
+table.orig th{background:#fff;color:#000;border:1px solid #000;font-size:11px;padding:8px 6px;text-align:center}
+table.orig td{border:1px solid #000;text-align:center;font-weight:600;height:34px}
+table.orig td:first-child{text-align:center;font-weight:800}
+table.orig tr.tot td{background:#fff2cc}
+table.orig tr.zero td{color:#9aa0a8;font-weight:500}
+textarea.notes{min-height:110px;border:2px solid #000;border-radius:0}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:14px 0 0;border-bottom:2px solid var(--brand)}
+.tab{padding:8px 14px;border-radius:8px 8px 0 0;background:#e6e8ec;cursor:pointer;font-weight:700;font-size:13px;color:var(--mute);user-select:none}
+.tab.has{color:var(--ink);background:#fff3c4}
+.tab.on{background:var(--brand);color:#fff}
+.tab small{display:block;font-weight:500;font-size:10px;opacity:.8}
+.panel{background:var(--panel);border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px;padding:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kpi .l{font-size:11px;text-transform:uppercase;color:var(--mute);letter-spacing:.5px}
+.kpi .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.ttl{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
+.ttl h2{margin:0;font-size:18px}
+.ttl .m{color:var(--mute);font-size:13px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:right;white-space:nowrap}
+th{background:var(--brand);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+td:first-child,th:first-child{text-align:left}
+tr.tot td{background:#fff3c4;font-weight:800}
+tr.zero td{color:#a3a8b2}
+td input{width:90px;border:1px solid var(--line);border-radius:4px;padding:3px 5px;text-align:right;font:inherit}
+.neg{color:var(--bad);font-weight:700}
+.ot{color:#b45309;font-weight:700}
+.scroll{overflow-x:auto}
+details{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
+details summary{padding:9px 12px;cursor:pointer;font-weight:700}
+details .in{padding:0 12px 12px;max-height:520px;overflow:auto}
+details table td,details table th{font-size:12px;padding:4px 7px}
+textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit;margin-top:6px}
+.warn{background:#fff4e5;border:1px solid #f5c27a;border-radius:8px;padding:8px 12px;margin:10px 0;font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr;gap:14px}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;margin:18px 0 8px;color:var(--brand)}
+.pos{color:var(--good)}
+@media print{
+  header button,#drop,.files,.sitebar,details,.noprint{display:none!important}
+  .tabs{display:none} body{background:#fff} .panel{border:0}
+  td input{border:0}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>TIKTOK <span>W.E.</span> REPORT</h1>
+  <label>Site Name<input id="siteName" value="TIKTOK" size="10"></label>
+  <label>Week Ending<select id="week"></select></label>
+  <div class="sp"></div>
+  <span id="saveStat" class="savestat"></span>
+  <button id="btnShared" title="Shared save — everyone with the link sees the same data">⚙ SHARED</button>
+  <button id="btnSaveHtml" title="Download this page with all the data saved inside it">SAVE HTML</button>
+  <button class="pri" id="btnSave" title="Save all loaded days, edits, handshake/volume and notes in this browser">SAVE</button>
+  <button id="btnBackup" title="Download a backup file of all saved days (drop it back in to restore)">BACKUP</button>
+  <button id="btnPrint">PRINT</button>
+  <button id="btnClear">CLEAR</button>
+  <button class="pri" id="btnXlsx">EXPORT EXCEL</button>
+</header>
+<main>
+  <div id="drop"><b>DROP PUNCH REPORT(S) HERE</b><br>Punch_Report CSV / XLSX — one per day, or drop the whole week at once<br><small>or click to browse</small></div>
+  <input type="file" id="fi" multiple accept=".csv,.xlsx,.xls,.json,.html" hidden>
+  <div class="files" id="files"></div>
+  <div class="sitebar" id="sitebar"></div>
+  <div id="view"></div>
+  <div id="dlg"></div>
+</main>
+</div>
+
+<script id="tt-main">
+/* ---------- in-page confirm / ask / toast (browser pop-ups can be blocked) ---------- */
+function ask(msg,okTxt,cb,input){
+  const dlg=document.getElementById('dlg');
+  dlg.innerHTML=`<div class="card"><div style="font-weight:700;white-space:pre-line">${String(msg).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div>${input?`<input id="askIn" type="date" value="${input}">`:''}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="askNo">CANCEL</button><button class="pri" id="askYes">${okTxt||'OK'}</button></div></div>`;
+  dlg.style.display='flex';const close=()=>{dlg.style.display='none';dlg.onclick=null};
+  document.getElementById('askNo').onclick=close;dlg.onclick=e=>{if(e.target===dlg)close()};
+  document.getElementById('askYes').onclick=()=>{const v=input?document.getElementById('askIn').value:true;close();if(!input||v)cb(v)};
+}
+window.alert=m=>{let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#351c15;color:#fff;padding:10px 16px;border-radius:8px;font-weight:600;z-index:20;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.3)';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500)};
+const BUCKETS=['FORKLIFT','LEAD','GENERAL LABOR'];
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const SITE_NAMES={'TT':'TIKTOK'};
+const S={files:[],inputs:{},sites:new Set(),seen:new Set(),week:null,tab:null};
+// inputs[key][bucket] = {hs,vol,inv}; inputs[key]._notes
+
+const LS=(k,d)=>{try{return Object.assign(d,JSON.parse(localStorage.getItem(k)||'{}'))}catch(e){return d}};
+const LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const DEPT_DEF={'100':'LEAD','200':'FORKLIFT','300':'GENERAL LABOR'}; // TikTok punch report dept codes
+let DEPTMAP=LS('tt_deptmap',{...DEPT_DEF});
+Object.entries(DEPT_DEF).forEach(([c,b])=>{if(!DEPTMAP[c])DEPTMAP[c]=b});   // dept code -> FORKLIFT / LEAD / GENERAL
+const PAY_DEF={'FORKLIFT':23,'LEAD':25,'GENERAL LABOR':20},MU_DEF=28.5;
+let LRATE=LS('tt_payrates',{...PAY_DEF});   // line -> PAY rate $/hr (bill = pay × (1 + markup))
+let MU=LS('tt_markup',{pct:MU_DEF});
+const billOf=pay=>num(pay)*(1+num(MU.pct)/100);
+// migrate older saved settings that used GENERAL
+Object.keys(DEPTMAP).forEach(k=>{if(DEPTMAP[k]==='GENERAL')DEPTMAP[k]='GENERAL LABOR'});
+function nameLine(dept){ // dept named in the punch report
+  const u=String(dept||'').toUpperCase();
+  if(/LEAD|SUPERVIS/.test(u))return'LEAD';
+  if(/FORK|\bPIT\b|REACH|LIFT/.test(u))return'FORKLIFT';
+  if(/GEN|LABOR/.test(u))return'GENERAL LABOR';
+  return null;
+}
+function bucketOf(dept){
+  const dk=String(dept||'').trim(),mp=DEPT_DEF[dk]||DEPTMAP[dk];if(mp&&BUCKETS.includes(mp))return mp;
+  return nameLine(dept)||'GENERAL LABOR';
+}
+// departments with no 2-digit code: map them to a site (saved in this browser)
+const DEF_ALIAS={};
+let ALIAS=(()=>{try{return Object.assign({},DEF_ALIAS,JSON.parse(localStorage.getItem('tt_site_alias')||'{}'))}catch(e){return{...DEF_ALIAS}}})();
+const saveAlias=()=>{try{localStorage.setItem('tt_site_alias',JSON.stringify(ALIAS))}catch(e){}};
+const siteOf=d=>{const t=String(d||'').trim(),m=t.match(/^(\d{2})/);return m?m[1]:(ALIAS[t.toUpperCase()]||'TT')};
+function resite(){S.files.forEach(f=>f.rows.forEach(r=>r.site=siteOf(r.dept)))}
+const num=v=>{if(v==null||v==='')return 0;const n=parseFloat(String(v).replace(/[$,\s]/g,''));return isNaN(n)?0:n};
+const f2=n=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $m=n=>(n<0?'-$':'$')+f2(Math.abs(n));
+const hr=n=>n?f2(n):'–';
+const DRX=/\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}/g;
+const pd=s=>{s=String(s);let m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return new Date(+m[3],m[1]-1,+m[2]);m=s.match(/(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],m[2]-1,+m[3]):null};
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const mdy=d=>String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+'.'+d.getFullYear();
+const weSat=d=>{const x=new Date(d);x.setDate(x.getDate()+((7-x.getDay())%7));return x}; // week ending = SUNDAY (work week Mon–Sun)
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- file loading ---------- */
+const drop=document.getElementById('drop'),fi=document.getElementById('fi');
+drop.onclick=()=>fi.click();
+fi.onchange=e=>{load([...e.target.files]);fi.value=''};
+['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();if(t==='drop'||e.target===drop)drop.classList.remove('over')}));
+document.addEventListener('drop',e=>load([...e.dataTransfer.files]));
+
+async function load(list){
+  for(const f of list){
+    try{
+      if(/\.json$/i.test(f.name)){const b=norm(JSON.parse(await f.text()));if(b){apply(merge(payload(),b));alert('Backup merged in.')}continue}
+      if(/\.html?$/i.test(f.name)){const m=(await f.text()).match(/<script type="application\/json" id="tt-state">([\s\S]*?)<\/script>/);if(m){apply(merge(payload(),JSON.parse(m[1])));alert('Data from '+f.name+' merged in.')}else alert('No saved data in '+f.name);continue}
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',raw:true});
+      // a workbook may hold several TS sheets (e.g. an old W.E. file) — take every sheet that has the timecard header
+      let any=false;
+      for(const sn of wb.SheetNames){
+        const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false});
+        const p=parse(aoa,f.name+(wb.SheetNames.length>1?' › '+sn:''));
+        if(p){[].concat(p).forEach(add);any=true}
+      }
+      if(!any)alert('No punch report data found in '+f.name+' (looking for an EMP L NAME header).');
+    }catch(err){alert('Could not read '+f.name+': '+err.message)}
+  }
+  render();
+}
+const hm=v=>{v=String(v||'').trim();if(!v)return null;let m=v.match(/(-?\d+):(\d{2})/);if(m)return(+m[1])+(m[1].startsWith('-')?-1:1)*(+m[2])/60;const n=parseFloat(v);return isNaN(n)?null:n};
+const tmin=v=>{const m=String(v||'').trim().match(/^(\d{1,2}):(\d{2})\s*([AP])?M?$/i);if(!m)return null;let h=+m[1]%12;if(m[3]&&m[3].toUpperCase()==='P')h+=12;if(!m[3])h=+m[1];return h*60+(+m[2])};
+const tshort=v=>String(v||'').trim().replace(/^0/,'').replace(/\s*([AP])M$/i,(x,a)=>a.toLowerCase());
+function parse(aoa,name){
+  const hi=aoa.findIndex(r=>r.some(c=>String(c).trim().toUpperCase()==='EMP L NAME'));
+  if(hi<0)return null;
+  const H=aoa[hi].map(h=>String(h).trim().toUpperCase()),col=k=>H.indexOf(k);
+  const c={ln:col('EMP L NAME'),fn:col('EMP F NAME'),id:col('EMP##'),date:col('DATE'),in:col('IN'),out:col('OUT'),tot:col('TOTAL'),dept:col('DEPT CODE')};
+  let hd=null;for(let i=0;i<hi;i++){const ds=String(aoa[i].join(' ')).match(DRX);if(ds){hd=pd(ds[0]);break}}
+  // 1) read every punch line, grouped by person + day (all depts, file order)
+  const blank=v=>{v=String(v||'').trim();return /^[-–—_.:\s*]*$/.test(v)?'':v};
+  const pd2={};let seq=0;
+  for(let i=hi+1;i<aoa.length;i++){
+    const r=aoa[i],L=String(r[c.ln]||'').replace(/\s+/g,' ').trim(),Fn=String(r[c.fn]||'').replace(/\s+/g,' ').trim();
+    if(!L&&!Fn)continue;if(/^TOTAL/i.test(L))continue;
+    const nm=L&&Fn?L+', '+Fn:L||Fn,d=pd(r[c.date])||hd;if(!d)continue;
+    const code=String(r[c.dept]||'').trim()||'NO DEPT',ti=blank(r[c.in]),to=blank(r[c.out]);
+    if(!ti&&!to&&hm(r[c.tot])==null)continue;
+    const pk=iso(d)+'|'+nm.toUpperCase();(pd2[pk]=pd2[pk]||{d:iso(d),name:nm,id:String(r[c.id]||'').trim(),segs:[]}).segs.push({code,ti,to,tot:hm(r[c.tot]),n:seq++});
+  }
+  // 2) missing lunch punches: join the halves into one straight shift so the hours still count
+  //    IN-only + OUT-only → IN→OUT · IN-only + IN/OUT → first IN→OUT · IN/OUT + OUT-only → IN→last OUT
+  Object.values(pd2).forEach(p=>{const S2=p.segs;
+    for(let n=0;n<S2.length-1;n++){const a=S2[n],b=S2[n+1];
+      if(a.ti&&!a.to&&b.to){a.to=b.to;a.tot=null;a.lunchMiss=b.ti?'lunch OUT punch missing':'lunch OUT and IN punches missing';S2.splice(n+1,1);n--;continue}
+      if(a.ti&&a.to&&!b.ti&&b.to){a.to=b.to;a.tot=null;a.lunchMiss='lunch IN punch missing';S2.splice(n+1,1);n--;continue}
+    }});
+  // 3) roll up per person + day + dept
+  const g={};
+  Object.values(pd2).forEach(p=>p.segs.forEach(sg=>{
+    const{ti,to,code}=sg;let h=sg.tot;
+    if((h==null||sg.lunchMiss)&&ti&&to){const a=tmin(ti),b=tmin(to);if(a!=null&&b!=null)h=((b-a+1440)%1440)/60}
+    const k=p.d+'|'+p.name.toUpperCase()+'|'+code;
+    const x=g[k]=g[k]||{d:p.d,name:p.name,id:p.id,dept:code,tot:0,miss:0,io:[],fin:1e9};const tm=tmin(ti);if(tm!=null)x.fin=Math.min(x.fin,tm);
+    if(sg.lunchMiss)x.lunchMiss=sg.lunchMiss;
+    x.tot+=(ti&&to)?(h||0):0;if(!ti||!to)x.miss++;if(ti&&!to){const m=tmin(ti);if(m!=null)x.open=(x.open||[]).concat(m)}x.io.push((ti?tshort(ti):'??')+'–'+(to?tshort(to):'??'));
+  }));
+  const days=[...new Set(Object.values(g).map(x=>x.d))].sort();
+  if(!days.length)return null;
+  return days.map(dk=>{const dt=new Date(dk+'T00:00:00');
+    const rows=Object.values(g).filter(x=>x.d===dk).sort((a,b)=>a.name.localeCompare(b.name)).map((x,n)=>({i:n,src:'punch',name:x.name,emp:x.id,dept:x.dept,raw:+x.tot.toFixed(2),fin:x.fin,reg:+x.tot.toFixed(2),ot:0,dt:0,tot:+x.tot.toFixed(2),pay:0,site:'TT',bucket:bucketOf(x.dept),miss:x.miss,open:x.open||null,lunchMiss:x.lunchMiss||null,io:x.io.join(', ')}));
+    return{name:name+(days.length>1?' ('+mdy(dt).slice(0,5)+')':''),start:dt,end:dt,single:true,rows,moves:[],key:dk}});
+}
+/* California OT (per associate, all punches/depts combined):
+   daily: first 8 = REG, 8–12 = OT 1.5×, over 12 = DT 2×
+   weekly (Mon–Sun): REG hours past 40 become OT
+   7th consecutive day worked in the week: first 8 = OT, over 8 = DT */
+let NODED=false,NODEL=false,NOLUNCH=false; // NODEL = price as if nobody was deleted // true = price without handshake deductions (for before/after)
+function reprice(){
+  const wk={};S.files.forEach(f=>{if(!f.rows.some(r=>r.src==='punch'))return;(wk[iso(weSat(f.end))]=wk[iso(weSat(f.end))]||[]).push(f)});
+  Object.values(wk).forEach(fs=>{
+    const byDay={};fs.forEach(f=>{if(f.single)byDay[f.start.getDay()]=f});
+    const wkReg={},daysWorked={};
+    for(const dw of [1,2,3,4,5,6,0]){const f=byDay[dw];if(!f)continue;const fx=f.fix||{},dd=NODED?{}:(f.ded||{});
+      const ppl={};f.rows.forEach(r=>{if(r.src!=='punch')return;if(r.raw==null)r.raw=r.tot;if(r.fin==null)r.fin=1e9;
+        r.bucket=bucketOf(r.dept);r.site='TT';const x=fx[r.i]||{};r.deleted=!!x.del&&!NODEL;const base=r.deleted?0:Math.max(0,x.hrs!=null&&x.hrs!==''?num(x.hrs)+(NOLUNCH&&x.lunchDed!=null?x.lunchDed/60:0):r.raw),cut=Math.min(base,num(dd[r.i]||0));
+        r.base=base;r.hrs=+(base-cut).toFixed(2);r.removed=cut>0&&r.hrs<=.001;r.trimmed=cut>0&&!r.removed?+cut.toFixed(2):0;
+        (ppl[nkey(r)]=ppl[nkey(r)]||[]).push(r)});
+      Object.entries(ppl).forEach(([k,rs])=>{
+        const t=rs.reduce((a,r)=>a+r.hrs,0);
+        const worked=(daysWorked[k]||0)+(t>0?1:0);daysWorked[k]=worked;
+        let reg,ot,dt;
+        if(dw===0&&worked===7&&t>0){reg=0;ot=Math.min(t,8);dt=Math.max(0,t-8)}
+        else{reg=Math.min(t,8);ot=Math.min(Math.max(t-8,0),4);dt=Math.max(t-12,0)}
+        const c=wkReg[k]||0,keep=Math.min(reg,Math.max(0,40-c)),wkOT=reg-keep;wkReg[k]=c+keep;
+        // hand out the day's hours to each dept row in punch order: REG, then OT (weekly, then daily), then DT
+        const seq=[['reg',keep],['ot',wkOT+ot],['dt',dt]];let si=0;
+        rs.sort((a,b)=>a.fin-b.fin).forEach(r=>{r.reg=0;r.ot=0;r.dt=0;let left=r.hrs;
+          while(left>1e-9&&si<seq.length){const take=Math.min(left,seq[si][1]);r[seq[si][0]]+=take;seq[si][1]-=take;left-=take;if(seq[si][1]<=1e-9)si++}
+          r.reg=+r.reg.toFixed(2);r.ot=+r.ot.toFixed(2);r.dt=+r.dt.toFixed(2);r.tot=+(r.reg+r.ot+r.dt).toFixed(2);r.wkOT=wkOT>0;
+          const x=fx[r.i]||{},pr=x.rate!=null&&x.rate!==''?num(x.rate):RATES[rkey(r)]!=null?num(RATES[rkey(r)]):num(LRATE[r.bucket]),rt=billOf(pr);
+          r.payRate=pr;r.rate=rt;r.pay=+(rt*(r.reg+1.5*r.ot+2*r.dt)).toFixed(2)});
+      });
+    }
+  });
+}
+function ratePanel(){
+  const codes=[...new Set(S.files.flatMap(f=>f.rows.map(r=>r.dept)))].sort();
+  const hrs={};S.files.forEach(f=>f.rows.forEach(r=>hrs[r.dept]=(hrs[r.dept]||0)+r.tot));
+  const un=codes.filter(c=>!DEPTMAP[c]&&!nameLine(c)),odd=codes.filter(c=>!DEPT_DEF[c]&&(DEPTMAP[c]||!nameLine(c)));
+  const dflt=BUCKETS.every(b=>num(LRATE[b])===PAY_DEF[b])&&num(MU.pct)===MU_DEF;
+  return`<h3>Pay Rates & Markup</h3><div class="mvbox noprint" style="display:block">
+   <div class="scroll"><table class="orig rb" style="max-width:640px"><thead><tr><th>Line</th><th>Pay Rate $/hr</th><th>Markup %</th><th>Bill Rate $/hr</th><th>OT Bill (1.5×)</th><th>DT Bill (2×)</th></tr></thead><tbody>
+   ${BUCKETS.map((b,n)=>{const br=billOf(LRATE[b]);return`<tr><td><b>${b}</b></td><td><input data-lrate="${b}" value="${esc(LRATE[b]??'')}" inputmode="decimal"></td>${n===0?`<td rowspan="${BUCKETS.length}"><input data-mu value="${esc(MU.pct)}" inputmode="decimal" style="width:70px"></td>`:''}<td><b>$${br.toFixed(2)}</b></td><td>$${(br*1.5).toFixed(2)}</td><td>$${(br*2).toFixed(2)}</td></tr>`}).join('')}
+   </tbody></table></div>
+   <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">${dflt?'<span class="tag">STANDARD RATES</span>':`<span class="tag t2">CHANGED FROM STANDARD</span> <button class="mini" data-ratereset>RESET TO 23 / 25 / 20 @ 28.5%</button>`}</div>
+   ${odd.length?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center"><b style="font-size:11px;letter-spacing:.5px;color:var(--mute)">OTHER DEPT → LINE:</b>
+   ${odd.map(c=>`<span style="display:flex;gap:4px;align-items:center;font-size:13px"><b>${esc(c)}</b><small style="color:var(--mute)">(${f2(hrs[c]||0)} hrs)</small><select data-dmap="${esc(c)}" style="font:inherit;padding:2px 4px;${DEPTMAP[c]?'':'border:2px solid var(--bad)'}"><option value="">assign…</option>${BUCKETS.map(b=>`<option ${DEPTMAP[c]===b?'selected':''}>${b}</option>`).join('')}</select></span>`).join('')}</div>`:''}
+   <div class="hint" style="margin-top:6px">${un.length?`<b class="neg">${un.length} dept code(s) not assigned — counted as GENERAL LABOR.</b> `:''}Rates are saved and apply to every day of every week. Bill rate = pay rate × (1 + markup). <b>California OT:</b> over 8/day = OT 1.5×, over 12/day = DT 2×, regular hrs past 40 in the week = OT, 7th straight day = OT first 8 / DT after.</div></div>`;
+}
+function rateLine(){return`<div class="hint noprint" style="margin:-4px 0 10px">Bill rates: ${BUCKETS.map(b=>`${b} $${billOf(LRATE[b]).toFixed(2)}`).join(' · ')} (pay + ${esc(MU.pct)}% markup) — change on the <a href="#" data-gosum>SUMMARY</a> tab.</div>`}
+function add(p){
+  const i=S.files.findIndex(f=>f.key===p.key);
+  if(i>=0){S.files[i]=p;alert('Replaced file for '+label(p))}else S.files.push(p);
+  S.week=iso(weSat(p.end));
+  S.tab=p.single?p.key:p.key;
+}
+function setDay(f,dIso){
+  const dt=new Date(dIso+'T00:00:00');if(isNaN(dt))return alert('Bad date.');
+  const nk=iso(dt),old=f.key;if(nk===old&&f.single)return;
+  const j=S.files.findIndex(x=>x.key===nk&&x!==f);
+  if(j>=0){S.files.splice(j,1);alert('Replaced the file that was on '+mdy(dt))}
+  f.start=f.end=dt;f.single=true;f.key=nk;
+  if(S.inputs[old]){S.inputs[nk]=S.inputs[old];delete S.inputs[old]}
+  S.week=iso(weSat(dt));S.tab=nk;render();
+}
+const label=f=>f.single?DAYS[f.start.getDay()]+' '+mdy(f.start):mdy(f.start)+' – '+mdy(f.end);
+
+/* ---------- compute ---------- */
+/* ---------- timecard issues: missed punch / no bill rate ---------- */
+let RATES=(()=>{try{return JSON.parse(localStorage.getItem('tt_rates')||'{}')}catch(e){return{}}})();
+const saveRates=()=>{try{localStorage.setItem('tt_rates',JSON.stringify(RATES))}catch(e){}};
+const rkey=r=>r.name.toUpperCase()+'|'+r.dept.toUpperCase();
+S.pmin=2;S.pmax=12;S.lunchNeed=5;S.lunchMin=30;S.lunchGap=15; // CA: meal by 5 hrs worked, 30 min; a gap of 15+ min between punches counts as a lunch
+function origRate(r){const u=r.reg+1.5*r.ot+2*(r.dt||0);return r.pay&&u>0?r.pay/u:0}
+function deptRate(dept){ // median straight-time bill rate for this dept across loaded files
+  const v=[];S.files.forEach(f=>f.rows.forEach(r=>{if(r.dept===dept&&r.pay>0&&r.tot>0){const x=origRate(r);if(x>0)v.push(x)}}));
+  if(!v.length)return 0;v.sort((a,b)=>a-b);return v[Math.floor(v.length/2)];
+}
+const isNoRate=r=>Math.abs(r.tot)>.001&&Math.abs(r.pay)<.005;
+function punchWhy(f,r){
+  if(r.deleted)return'';
+  r={...r,tot:r.raw!=null?r.raw:r.tot};
+  if(r.miss)return r.open?'no OUT punch — still on the clock?':'missing '+(r.io.includes('??–')?'IN':'OUT')+' punch';
+  if(r.tot<0||r.reg<0)return'negative hours';
+  if(Math.abs(r.tot)<.001)return'zero hours';
+  if(f.single&&r.tot<S.pmin)return`under ${S.pmin} hrs`;
+  if(f.single&&r.tot>S.pmax)return`over ${S.pmax} hrs`;
+  return'';
+}
+// salaried leads: flat bill $ per day worked, saved by associate name
+const SAL={}; // salary feature removed — every associate bills hourly
+const saveSal=()=>{};
+const nkey=r=>r.name.toUpperCase().replace(/\s+/g,' ').trim();
+const isLead=r=>/LEAD/i.test(r.dept)||/\(S?L\)/i.test(r.name);
+const salDays=(f,r)=>f.single?1:((f.sdays||{})[r.i]!=null?num(f.sdays[r.i]):Math.max(1,Math.round(Math.abs(r.tot)/8)));
+function fixRow(f,r){
+  const o=fixRow0(f,r),sal=SAL[nkey(r)],fx=(f.fix||{})[r.i];
+  if(sal!=null&&sal!==''&&Math.abs(o.tot)>.001&&!(fx&&fx.rate!=null&&fx.rate!=='')){o.pay=num(sal)*salDays(f,r);o.salary=num(sal);o.sdays=salDays(f,r);o.savedRate=false}
+  return o;
+}
+function fixRow0(f,r){
+  if(r.src==='punch'){const fx=(f.fix||{})[r.i]||{};return{...r,fixed:fx.hrs!=null&&fx.hrs!==''||fx.rate!=null&&fx.rate!=='',rateUsed:r.rate||0,savedRate:false}}
+  const fx=(f.fix||{})[r.i],sv=RATES[rkey(r)];
+  if(!fx&&!(isNoRate(r)&&sv))return{...r};
+  const o={...r};
+  if(fx&&fx.reg!=null&&fx.reg!=='')o.reg=num(fx.reg);
+  if(fx&&fx.ot!=null&&fx.ot!=='')o.ot=num(fx.ot);
+  o.tot=o.reg+o.ot;
+  const rate=fx&&fx.rate!=null&&fx.rate!==''?num(fx.rate):(isNoRate(r)&&sv?sv:origRate(r));
+  if(fx&&(fx.reg!=null||fx.ot!=null||fx.rate!=null)||isNoRate(r))o.pay=rate*(o.reg+1.5*o.ot);
+  o.fixed=!!fx&&(fx.reg!=null||fx.ot!=null||fx.rate!=null);o.rateUsed=rate;o.savedRate=!fx&&!!sv;
+  return o;
+}
+/* ---------- LUNCH: read each person's IN/OUT pairs for the day ---------- */
+const ioMin=t=>{const m=String(t).match(/(\d{1,2}):(\d{2})\s*([ap])?/i);if(!m)return null;let h=+m[1];if(m[3]){h%=12;if(m[3].toLowerCase()==='p')h+=12}return h*60+(+m[2])};
+const mclock=m=>{m=((m%1440)+1440)%1440;let h=Math.floor(m/60),mm=m%60,ap=h<12?'a':'p';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+ap};
+function lunchCheck(f){
+  const ppl={};
+  f.rows.forEach(r=>{if(r.deleted||r.removed||!r.io)return;const k=nkey(r);const p=ppl[k]=ppl[k]||{name:r.name,rows:[],segs:[]};p.rows.push(r);
+    r.io.split(',').forEach(x=>{const [a,b]=x.split('–');const i=ioMin(a),o=ioMin(b);if(i!=null)p.segs.push([i,o])})});
+  const out=[];
+  Object.values(ppl).forEach(p=>{
+    if(!p.segs.length)return;
+    // overnight: if punches span more than 12 hrs of clock, the early-morning ones belong after midnight
+    const ins=p.segs.map(s=>s[0]);if(Math.max(...ins)-Math.min(...ins)>720)p.segs.forEach(s=>{if(s[0]<720){s[0]+=1440;if(s[1]!=null)s[1]+=1440}});
+    p.segs.forEach(s=>{if(s[1]!=null&&s[1]<s[0])s[1]+=1440});
+    p.segs.sort((a,b)=>a[0]-b[0]);
+    const open=p.segs.some(s=>s[1]==null);
+    const worked=p.segs.reduce((a,s)=>a+(s[1]!=null?s[1]-s[0]:0),0)/60;
+    const gaps=[];for(let n=1;n<p.segs.length;n++){const prev=p.segs[n-1][1];if(prev==null)continue;const g=p.segs[n][0]-prev;if(g>=S.lunchGap)gaps.push({from:prev,to:p.segs[n][0],min:g})}
+    let why='',kind='';
+    if(gaps.length>=2){kind='double';why=`${gaps.length} lunches: `+gaps.map(g=>`${mclock(g.from)}–${mclock(g.to)} (${g.min} min)`).join(', ')}
+    else if(!gaps.length&&!open&&worked>S.lunchNeed){kind='none';const lm=p.rows.find(r=>r.lunchMiss);why=lm?`${lm.lunchMiss} — counted ${f2(worked)} hrs straight through`:`no lunch punch — ${f2(worked)} hrs worked`}
+    else if(gaps.length===1&&gaps[0].min<S.lunchMin){kind='short';why=`short lunch ${gaps[0].min} min (${mclock(gaps[0].from)}–${mclock(gaps[0].to)})`}
+    else if(gaps.length===1){const before=(gaps[0].from-p.segs[0][0])/60;if(before>S.lunchNeed){kind='late';why=`late lunch — started after ${f2(before)} hrs`}}
+    if(!kind)return;
+    const main=p.rows.slice().sort((a,b)=>(b.hrs||0)-(a.hrs||0))[0];
+    out.push({kind,why,name:p.name,rows:p.rows,main,worked,gaps,io:p.rows.map(r=>r.io).join(', '),fx:(f.fix||{})[main.i]||{}});
+  });
+  const ord={none:0,double:1,short:2,late:3};
+  return out.sort((a,b)=>ord[a.kind]-ord[b.kind]||a.name.localeCompare(b.name));
+}
+function issues(f){
+  const rows=f.rows.filter(r=>S.sites.has(r.site)&&!r.deleted&&!r.removed),fx=f.fix||{};
+  const punch=rows.filter(r=>punchWhy(f,r)).map(r=>({r,why:punchWhy(f,r),fx:fx[r.i]||{}}));
+  const norate=rows.filter(r=>isNoRate(r)).map(r=>({r,fx:fx[r.i]||{}}));
+  const done=x=>x.fx.ok||(x.fx.hrs!=null&&x.fx.hrs!=='')||(x.fx.reg!=null&&x.fx.reg!=='')||(x.fx.ot!=null&&x.fx.ot!=='');
+  const rdone=x=>x.fx.ok||(x.r.pay>0)||(x.fx.rate!=null&&x.fx.rate!=='')||!!RATES[rkey(x.r)];
+  const lunch=lunchCheck(f),ldone=x=>!!x.fx.lunchOk||x.fx.lunchDed!=null;
+  return{leads:[],lunch,ldone,openL:lunch.filter(x=>!ldone(x)).length,punch,norate,openP:punch.filter(x=>!done(x)).length,openR:norate.filter(x=>!rdone(x)).length,done,rdone};
+}
+function issuePanel(f){
+  const I=issues(f);if(!I.punch.length&&!I.norate.length&&!I.lunch.length)return`<h3>Timecard Issues</h3><div class="plan" style="border-color:var(--good)">✓ No missed punches, lunch issues or missing bill rates.</div>`;
+  const k=f.key,cur=fixRow;
+  const inp3=(i,fl,v,ph)=>`<input data-fix="${i}" data-fl="${fl}" data-f="${k}" value="${v==null?'':esc(v)}" placeholder="${esc(ph)}" inputmode="decimal">`;
+  let h=`<h3>Timecard Issues</h3><div class="issues">`;
+  // missed punch
+  h+=`<div class="ibox ${I.openP?'open':''}"><div class="ihd"><b>MISSED PUNCH</b> <span class="cnt">${I.openP} open / ${I.punch.length}</span>
+    ${f.single?`<span class="thr">flag under <input data-thr="pmin" value="${S.pmin}"> or over <input data-thr="pmax" value="${S.pmax}"> hrs</span>`:'<span class="thr">period file — flags zero/negative only</span>'}</div>`;
+  const openRows=f.rows.filter(r=>r.open&&r.open.length&&!r.deleted);
+  if(openRows.length){const waiting=openRows.filter(r=>{const x=(f.fix||{})[r.i]||{};return x.hrs==null||x.hrs===''}).length;
+    h+=`<div class="mvbox" style="display:flex;margin:8px 0"><b style="font-size:12px">${openRows.length} still clocked in (no OUT)${waiting<openRows.length?` · ${openRows.length-waiting} filled`:''}</b>
+      <label>SET OUT TIME FOR ALL<input type="time" id="openOut_${k}" value="${esc(S.openOut||'18:30')}" style="min-width:0;width:130px"></label>
+      <label>MEAL BREAK (MIN)<input id="openMeal_${k}" value="${esc(S.openMeal??'30')}" inputmode="numeric" style="min-width:0;width:80px"></label>
+      <button class="pri" data-act="openfill" data-f="${k}">FILL ${waiting||openRows.length} OPEN PUNCH${(waiting||openRows.length)>1?'ES':''}</button>
+      ${waiting<openRows.length?`<button data-act="openclr" data-f="${k}">CLEAR FILLED</button>`:''}
+      <span class="hint" style="flex-basis:100%">Hours = OUT time − IN punch − meal break, for everyone with no OUT. Re-drop the punch report later to use real OUT punches.</span></div>`}
+  if(I.punch.length){h+=`<div class="scroll"><table class="itbl"><thead><tr><th>Employee</th><th>Dept</th><th>Why</th><th>Punch Hrs</th><th>Correct Hrs</th><th>Reg / OT / DT</th><th>Rate</th><th>Bill $</th><th></th></tr></thead><tbody>`;
+    I.punch.forEach(x=>{const r=x.r,o=cur(f,r),ok=I.done(x);
+      h+=`<tr class="${ok?'okrow':''}"><td>${esc(r.name)}${r.io?`<br><small style="color:var(--mute)">${esc(r.io)}</small>`:''}</td><td>${esc(r.dept)}</td><td class="neg">${x.why}</td>
+      <td>${f2(r.raw!=null?r.raw:r.tot)}</td><td>${inp3(r.i,'hrs',x.fx.hrs,'hrs')}</td><td>${f2(r.reg)} / ${hr(r.ot)} / ${hr(r.dt||0)}</td><td>${o.rateUsed||origRate(r)?'$'+(o.rateUsed||origRate(r)).toFixed(2):'–'}</td><td>${$m(o.pay)}</td>
+      <td>${ok?`<span class="tag">${x.fx.ok?'OK':'FIXED'}</span> <button class="mini x" data-act="fixclr" data-f="${k}" data-i="${r.i}">reset</button>`:`<button class="mini" data-act="fixok" data-f="${k}" data-i="${r.i}">OK as is</button>`}</td></tr>`});
+    h+=`</tbody></table></div>`}else h+=`<div class="pos" style="font-size:13px">✓ None</div>`;
+  h+=`</div>`;
+  // lunch
+  const KL={none:'NO LUNCH',double:'DOUBLE LUNCH',short:'SHORT LUNCH',late:'LATE LUNCH'};
+  const cntK=t=>I.lunch.filter(x=>x.kind===t).length;
+  h+=`<div class="ibox ${I.openL?'open':''}"><div class="ihd"><b>LUNCH</b> <span class="cnt">${I.openL} open / ${I.lunch.length}</span>
+    ${['none','double','short','late'].filter(t=>cntK(t)).map(t=>`<span class="tag ${t==='none'||t==='double'?'rm':'t2'}">${cntK(t)} ${KL[t].toLowerCase()}</span>`).join(' ')}
+    <span class="thr">lunch needed over <input data-thr="lunchNeed" value="${S.lunchNeed}"> hrs · under <input data-thr="lunchMin" value="${S.lunchMin}"> min is short</span>
+    ${I.lunch.some(x=>x.kind==='none'&&!I.ldone(x))?`<button class="mini" data-act="lunchdedall" data-f="${k}">DEDUCT 30 MIN FROM ALL NO-LUNCH</button>`:''}</div>`;
+  if(I.lunch.length){h+=`<div class="scroll"><table class="itbl"><thead><tr><th>Employee</th><th>Dept</th><th>Issue</th><th>Punches</th><th>Hrs Worked</th><th></th></tr></thead><tbody>`;
+    I.lunch.forEach(x=>{const ok=I.ldone(x),r=x.main;
+      h+=`<tr class="${ok?'okrow':''}"><td>${esc(x.name)}</td><td>${[...new Set(x.rows.map(z=>z.dept))].map(esc).join(', ')}</td>
+       <td><span class="tag ${x.kind==='none'||x.kind==='double'?'rm':'t2'}">${KL[x.kind]}</span> <small>${esc(x.why)}</small></td>
+       <td style="text-align:left;font-size:11px;color:var(--mute)">${esc(x.io)}</td><td>${f2(x.worked)}</td>
+       <td style="white-space:nowrap">${x.fx.lunchDed!=null?`<span class="tag">−${x.fx.lunchDed} min deducted</span> <button class="mini x" data-act="lunchundo" data-f="${k}" data-i="${r.i}">undo</button>`:
+         x.fx.lunchOk?`<span class="tag">OK</span> <button class="mini x" data-act="lunchundo" data-f="${k}" data-i="${r.i}">undo</button>`:
+         `${x.kind==='none'?`<button class="mini" data-act="lunchded" data-f="${k}" data-i="${r.i}">DEDUCT 30 MIN</button> `:''}<button class="mini" data-act="lunchok" data-f="${k}" data-i="${r.i}">OK AS IS</button>`}</td></tr>`});
+    h+=`</tbody></table></div><div class="hint" style="margin-top:4px">A gap of ${S.lunchGap}+ min between an OUT and the next IN counts as a lunch. Double lunch: both gaps are already unpaid, so hours are correct — check it wasn't a missed IN/OUT. DEDUCT 30 MIN takes 30 min off and recalculates OT.</div>`}
+  else h+=`<div class="pos" style="font-size:13px">✓ None</div>`;
+  h+=`</div>`;
+  // no bill rate
+  h+=`<div class="ibox ${I.openR?'open':''}"><div class="ihd"><b>NO BILL RATE</b> <span class="cnt">${I.openR} open / ${I.norate.length}</span>
+    ${I.openR?`<button class="mini" data-act="fillrate" data-f="${k}">FILL OPEN WITH DEPT AVG</button>`:''}</div>`;
+  if(I.norate.length){h+=`<div class="scroll"><table class="itbl"><thead><tr><th>Employee</th><th>Dept</th><th>Reg</th><th>OT</th><th>DT</th><th>Pay Rate</th><th>Bill $</th><th></th></tr></thead><tbody>`;
+    I.norate.forEach(x=>{const r=x.r,o=cur(f,r),ok=I.rdone(x),dr=deptRate(r.dept),sv=RATES[rkey(r)];
+      h+=`<tr class="${ok?'okrow':''}"><td>${esc(r.name)}</td><td>${esc(r.dept)}</td><td>${f2(r.reg)}</td><td>${hr(r.ot)}</td><td>${hr(r.dt||0)}</td>
+      <td>${inp3(r.i,'rate',x.fx.rate!=null?x.fx.rate:(sv!=null?sv:null),dr?'dept avg '+dr.toFixed(2):'$/hr')}</td><td>${$m(o.pay)}</td>
+      <td>${ok?`<span class="tag">${x.fx.ok?'OK':sv&&x.fx.rate==null?'SAVED RATE':'FIXED'}</span> <button class="mini x" data-act="fixclr" data-f="${k}" data-i="${r.i}">reset</button>`:`<button class="mini" data-act="fixok" data-f="${k}" data-i="${r.i}">OK as is</button>`}</td></tr>`});
+    h+=`</tbody></table></div><div class="hint" style="margin-top:4px">Pay rates you enter are saved for that associate + dept; markup is added on top.</div>`}else h+=`<div class="pos" style="font-size:13px">✓ None</div>`;
+  h+=`</div>`;
+  return h+`</div>`;
+}
+function editRow(f,i){
+  const r=f.rows.find(x=>x.i===i);if(!r)return;const fx=(f.fix||{})[i]||{};
+  const dlg=document.getElementById('dlg');
+  dlg.innerHTML=`<div class="card"><h3 style="margin-top:0">EDIT — ${esc(r.name)}</h3><p style="margin:0 0 8px;color:var(--mute)">${esc(r.dept)} · punches ${esc(r.io||'')} · ${f2(r.raw!=null?r.raw:r.tot)} hrs<br>now ${f2(r.reg)} reg / ${f2(r.ot)} OT / ${f2(r.dt||0)} DT · ${$m(r.pay)}</p>
+    <label>TOTAL HOURS WORKED (Reg / OT / DT recalculated)<input id="xHrs" inputmode="decimal" value="${fx.hrs!=null?esc(fx.hrs):+(r.raw!=null?r.raw:r.tot).toFixed(2)}"></label>
+    <label>PAY RATE $/HR (markup ${esc(MU.pct)}% added → bill)<input id="xRate" inputmode="decimal" value="${(r.payRate||0).toFixed(2)}"></label>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px"><button id="xReset" class="mini x">RESET TO PUNCHES</button><span><button id="xCancel">CANCEL</button> <button class="pri" id="xGo">SAVE</button></span></div></div>`;
+  dlg.style.display='flex';const close=()=>{dlg.style.display='none'};
+  document.getElementById('xCancel').onclick=close;dlg.onclick=e=>{if(e.target===dlg)close()};
+  document.getElementById('xReset').onclick=()=>{if(f.fix)delete f.fix[i];close();render()};
+  document.getElementById('xGo').onclick=()=>{
+    f.fix=f.fix||{};const n={};const h=document.getElementById('xHrs').value.trim(),rt=document.getElementById('xRate').value.trim();
+    if(h!==''&&Math.abs(num(h)-(r.raw!=null?r.raw:r.tot))>.004)n.hrs=h;
+    const lr=num(LRATE[r.bucket]);if(rt!==''&&Math.abs(num(rt)-(RATES[rkey(r)]!=null?num(RATES[rkey(r)]):lr))>.004){n.rate=rt;RATES[rkey(r)]=num(rt);saveRates()}
+    if(Object.keys(n).length)f.fix[i]=n;else delete f.fix[i];
+    close();render();
+  };
+}
+function applyMoves(f){
+  return f.rows.map(r=>fixRow(f,r));
+  const rows=f.rows.map(r=>fixRow(f,r));
+  (f.moves||[]).forEach(m=>{
+    if(m.kind==='emp'){
+      const r=rows.find(x=>x.i===m.i&&!x.moved);if(!r||r.tot<=0)return;
+      const h=Math.min(m.hrs,r.tot),fr=h/r.tot;
+      const mv={...r,i:null,moved:m.id,from:r.dept,dept:m.to,site:siteOf(m.to),bucket:bucketOf(m.to),reg:r.reg*fr,ot:r.ot*fr,tot:h,pay:r.pay*fr};
+      r.reg-=mv.reg;r.ot-=mv.ot;r.tot-=h;r.pay-=mv.pay;r.touched=true;
+      rows.push(mv);
+    }else if(m.kind==='add'){
+      const r=rows.find(x=>x.i===m.i&&!x.moved);if(!r)return;
+      const u=r.reg+1.5*r.ot;let rate=u>0&&r.pay?r.pay/u:deptRate(r.dept);
+      r.reg+=m.hrs;r.tot+=m.hrs;r.pay+=r.salary!=null?0:m.hrs*rate;r.added=(r.added||0)+m.hrs;
+      rows.rm=rows.rm||{};rows.rm[m.id]={hrs:-m.hrs,pay:r.salary!=null?0:-m.hrs*rate};
+    }else if(m.kind==='rm'){
+      const r=rows.find(x=>x.i===m.i&&!x.moved);if(!r||r.tot<=0)return;
+      const h=Math.min(m.hrs,r.tot),fr=h/r.tot,pay=r.pay*fr;
+      r.reg-=r.reg*fr;r.ot-=r.ot*fr;r.tot-=h;r.pay-=pay;
+      if(r.tot<=.001){r.tot=0;r.reg=0;r.ot=0;r.pay=0;r.removed=true}else r.trimmed=(r.trimmed||0)+h;
+      rows.rm=rows.rm||{};rows.rm[m.id]={hrs:h,pay};
+    }else{
+      const base={i:null,adj:m.id,ot:0,name:'⇄ DEPT ADJUSTMENT'};
+      rows.push({...base,dept:m.from,site:siteOf(m.from),bucket:bucketOf(m.from),reg:-m.hrs,tot:-m.hrs,pay:-m.hrs*m.rate,from:m.from,to:m.to});
+      rows.push({...base,dept:m.to,site:siteOf(m.to),bucket:bucketOf(m.to),reg:m.hrs,tot:m.hrs,pay:m.hrs*m.rate,from:m.from,to:m.to});
+    }
+  });
+  return rows;
+}
+function rowsFor(f){return applyMoves(f).filter(r=>S.sites.has(r.site))}
+function rawFor(f){return f.rows.filter(r=>S.sites.has(r.site))}
+function moveDesc(f,m){
+  if(m.kind==='emp'){const r=f.rows.find(x=>x.i===m.i);return`${m.auto?'[AUTO] ':''}${r?r.name:'?'}: ${m.from} → ${m.to}`}
+  if(m.kind==='add'){const r=f.rows.find(x=>x.i===m.i);return`${m.auto?'[AUTO] ':''}${r?r.name:'?'}: hours added (${m.from})`}
+  if(m.kind==='rm'){const r=f.rows.find(x=>x.i===m.i);return`${m.auto?'[AUTO] ':''}${r?r.name:'?'}: ${m.whole?'removed from report':'hours trimmed'} (${m.from})`}
+  return`${m.from} → ${m.to} (dept move @ ${$m(m.rate)}/hr)`;
+}
+function moveAmt(ar,m){
+  if(m.kind==='emp'){const r=ar.find(x=>x.moved===m.id)||{tot:0,pay:0};return{hrs:r.tot,pay:r.pay}}
+  if(m.kind==='rm'||m.kind==='add'){const x=(ar.rm||{})[m.id]||{hrs:0,pay:0};return{hrs:-x.hrs,pay:-x.pay}}
+  return{hrs:m.hrs,pay:m.hrs*m.rate};
+}
+function addMove(f,m){f.moves.push({id:Date.now()+Math.random(),...m});render()}
+const siteLbl=()=>{const a=[...S.sites].sort();return a.length?a.join(', '):'none'};
+function agg(rows){
+  const o={};BUCKETS.forEach(b=>o[b]={reg:0,ot:0,dt:0,tot:0,pay:0,names:new Set()});
+  const all=new Set();
+  rows.forEach(r=>{const a=o[r.bucket];a.reg+=r.reg;a.ot+=r.ot;a.dt+=(r.dt||0);a.tot+=r.tot;a.pay+=r.pay;if((r.tot>0||(r.miss&&r.open&&!r.deleted&&!r.removed))&&!r.adj){a.names.add(r.name);all.add(r.name)}});
+  const t={reg:0,ot:0,dt:0,tot:0,pay:0};BUCKETS.forEach(b=>{t.reg+=o[b].reg;t.ot+=o[b].ot;t.dt+=o[b].dt;t.tot+=o[b].tot;t.pay+=o[b].pay});
+  t.head=all.size;return{b:o,t};
+}
+const inp=(k,b)=>{S.inputs[k]=S.inputs[k]||{};return S.inputs[k][b]=S.inputs[k][b]||{hs:'',hc:'',vol:'',inv:''}};
+function weekFiles(){
+  const sat=new Date(S.week+'T00:00:00'),sun=new Date(sat);sun.setDate(sat.getDate()-6); // sat = week-ending Sunday, sun = Monday start
+  const days=DAYS.map((_,i)=>{const d=new Date(sun);d.setDate(sun.getDate()+i);return{d,f:S.files.find(f=>f.single&&f.key===iso(d))}});
+  const ranges=S.files.filter(f=>!f.single&&iso(weSat(f.end))===S.week);
+  return{sat,sun,days,ranges};
+}
+
+/* ---------- render ---------- */
+function render(){
+  drop.classList.toggle('small',S.files.length>0);
+  // site options
+  const sites=new Map();S.files.forEach(f=>f.rows.forEach(r=>sites.set(r.site,(sites.get(r.site)||0)+1)));
+  const sorted=[...sites.keys()].sort();
+  // first time a site code shows up: auto-select 06 if present, else the first site
+  const fresh=sorted.filter(x=>!S.seen.has(x));fresh.forEach(x=>S.seen.add(x));
+  [...S.sites].forEach(x=>{if(!sites.has(x))S.sites.delete(x)});
+  if(sites.size&&!S.sites.size&&fresh.length===S.seen.size)S.sites.add(sites.has('TT')?'TT':sorted[0]);
+  const hrs={};S.files.forEach(f=>f.rows.forEach(r=>hrs[r.site]=(hrs[r.site]||0)+r.tot));
+  const sb=document.getElementById('sitebar');
+  sb.style.display=sites.size?'flex':'none';
+  sb.innerHTML='<b>SITE FILTER</b><span class="sc all" data-s="*ALL">ALL</span><span class="sc all" data-s="*NONE">NONE</span>'+
+    sorted.map(x=>`<span class="sc ${S.sites.has(x)?'on':''}" data-s="${x}">${x}${SITE_NAMES[x]?' · '+SITE_NAMES[x]:''}<small>${f2(hrs[x]||0)} hrs</small></span>`).join('');
+  const un=[...new Set(S.files.flatMap(f=>f.rows.filter(r=>r.site==='??').map(r=>r.dept)))];
+  if(un.length)sb.innerHTML+=`<div class="unas">No site code: ${un.map(d=>`<span><b>${esc(d)}</b> → <select data-alias="${esc(d)}"><option value="">assign site…</option>${sorted.filter(x=>x!=='??').map(x=>`<option>${x}</option>`).join('')}</select></span>`).join(' ')}</div>`;
+  const mapped=Object.keys(ALIAS).filter(k=>ALIAS[k]&&S.files.some(f=>f.rows.some(r=>r.dept.toUpperCase()===k)));
+  if(mapped.length)sb.innerHTML+=`<div class="unas" style="background:#eef6f1;border-color:#bfe3cf">Assigned: ${mapped.map(k=>`${esc(k)} → <b>${ALIAS[k]}</b> <a href="#" data-unalias="${esc(k)}">change</a>`).join(' · ')}</div>`;
+  sb.querySelectorAll('select[data-alias]').forEach(el=>el.onchange=()=>{if(!el.value)return;ALIAS[el.dataset.alias.toUpperCase()]=el.value;saveAlias();resite();render()});
+  sb.querySelectorAll('[data-unalias]').forEach(el=>el.onclick=e=>{e.preventDefault();delete ALIAS[el.dataset.unalias];if(DEF_ALIAS[el.dataset.unalias])ALIAS[el.dataset.unalias]='';saveAlias();resite();render()});
+  sb.querySelectorAll('.sc').forEach(el=>el.onclick=()=>{
+    const v=el.dataset.s;
+    if(v==='*ALL')sorted.forEach(x=>S.sites.add(x));else if(v==='*NONE')S.sites.clear();
+    else S.sites.has(v)?S.sites.delete(v):S.sites.add(v);
+    if(!S.sites.size&&v!=='*NONE')S.sites.add(sorted[0]);
+    const one=[...S.sites];document.getElementById('siteName').value=one.length===1?(SITE_NAMES[one[0]]||'SITE '+one[0]):'MULTI-SITE ('+one.sort().join(', ')+')';
+    render()});
+  // weeks
+  const weeks=[...new Set(S.files.map(f=>iso(weSat(f.end))))].sort();
+  const ws=document.getElementById('week');
+  if(!weeks.includes(S.week))S.week=weeks[weeks.length-1]||null;
+  ws.innerHTML=weeks.map(w=>`<option value="${w}">${mdy(new Date(w+'T00:00:00'))}</option>`).join('')||'<option>—</option>';
+  if(S.week)ws.value=S.week;
+  // chips
+  document.getElementById('files').innerHTML=S.files.map((f,i)=>`<span class="chip">${esc(label(f))} · ${f.rows.length} rows <a href="#" data-cd="${i}" title="Change the date this file counts for">change date</a><x data-i="${i}" title="Remove">×</x></span>`).join('');
+  document.querySelectorAll('[data-cd]').forEach(a=>a.onclick=e=>{e.preventDefault();const f=S.files[+a.dataset.cd];ask('Date this file is for — '+f.name,'SET DATE',v=>setDay(f,v),iso(f.start))});
+  document.querySelectorAll('.chip x').forEach(x=>x.onclick=()=>{const f=S.files[+x.dataset.i];ask('Remove '+label(f)+' and its saved work?','REMOVE',()=>{const k=S.files.indexOf(f);if(k>=0)S.files.splice(k,1);delete S.inputs[f.key];render()})});
+  const v=document.getElementById('view');
+  if(!S.files.length){v.innerHTML='';return}
+  const W=weekFiles();
+  const tabs=W.days.map(({d,f})=>({k:iso(d),t:DAYS[d.getDay()].toUpperCase(),s:mdy(d).slice(0,5),has:!!f}))
+    .concat(W.ranges.map(f=>({k:f.key,t:'PERIOD',s:mdy(f.start).slice(0,5)+'–'+mdy(f.end).slice(0,5),has:true})))
+    .concat([{k:'SUMMARY',t:'SUMMARY',s:'W.E. '+mdy(W.sat).slice(0,5),has:true},{k:'LOST',t:'LOST HRS',s:'report',has:true}]);
+  if(!tabs.some(t=>t.k===S.tab))S.tab=(tabs.find(t=>t.has&&t.k!=='SUMMARY'&&t.k!=='LOST')||tabs[tabs.length-1]).k;
+  const badge=k=>{const f=S.files.find(x=>x.key===k);if(!f)return'';const I=issues(f),n=I.openP+I.openR+I.openL;return n?`<span class="bdg">${n}</span>`:''};
+  let h='<div class="tabs">'+tabs.map(t=>`<div class="tab ${t.has?'has':''} ${S.tab===t.k?'on':''}" data-k="${t.k}">${t.t}${badge(t.k)}<small>${t.s}</small></div>`).join('')+'</div><div class="panel">';
+  if(S.tab==='SUMMARY')h+=summaryView(W);
+  else if(S.tab==='LOST')h+=lostView(W);
+  else{const f=S.files.find(x=>x.key===S.tab);h+=f?dayView(f):emptyDay(S.tab)}
+  v.innerHTML=h+'</div>';
+  {const b=document.getElementById('btnLostX');if(b)b.onclick=exportLost;document.querySelectorAll('[data-xdel]').forEach(x=>x.onclick=exportRemoved)}
+  v.querySelectorAll('[data-lrate]').forEach(el=>el.onchange=()=>{const v2=el.value.replace(/[$,\s]/g,'');if(v2==='')delete LRATE[el.dataset.lrate];else LRATE[el.dataset.lrate]=num(v2);LSs('tt_payrates',LRATE);render()});
+  v.querySelectorAll('[data-mu]').forEach(el=>el.onchange=()=>{MU.pct=num(el.value.replace('%',''));LSs('tt_markup',MU);render()});
+  v.querySelectorAll('[data-ratereset]').forEach(el=>el.onclick=()=>{Object.keys(LRATE).forEach(k=>delete LRATE[k]);Object.assign(LRATE,PAY_DEF);MU.pct=MU_DEF;LSs('tt_payrates',LRATE);LSs('tt_markup',MU);render()});
+  v.querySelectorAll('[data-gosum]').forEach(el=>el.onclick=e=>{e.preventDefault();S.tab='SUMMARY';render()});
+  v.querySelectorAll('[data-dmap]').forEach(el=>el.onchange=()=>{if(el.value)DEPTMAP[el.dataset.dmap]=el.value;else delete DEPTMAP[el.dataset.dmap];LSs('tt_deptmap',DEPTMAP);render()});
+  v.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{S.week=iso(weSat(new Date(b.dataset.go+'T00:00:00')));S.tab=b.dataset.go;render()});
+  v.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{S.tab=t.dataset.k;render()});
+  v.querySelectorAll('input[data-k]').forEach(el=>el.oninput=()=>{inp(el.dataset.k,el.dataset.b)[el.dataset.f]=el.value;recalc()});
+  v.querySelectorAll('[data-flt]').forEach(el=>{const run=()=>{S.flt=el.value;const q=el.value.toLowerCase();el.closest('.in').querySelectorAll('tr[data-q]').forEach(tr=>tr.style.display=tr.dataset.q.includes(q)?'':'none')};el.oninput=run;run()});
+  v.querySelectorAll('details[data-emp]').forEach(d=>d.ontoggle=()=>{S.openEmp=d.open?d.dataset.emp:null});
+  v.querySelectorAll('[data-act]').forEach(el=>el.onclick=()=>act(el.dataset));
+  v.querySelectorAll('input[data-fix]').forEach(el=>el.onchange=()=>{const f=S.files.find(x=>x.key===el.dataset.f);if(!f)return;f.fix=f.fix||{};const i=+el.dataset.fix,fl=el.dataset.fl;
+    const fx=f.fix[i]=f.fix[i]||{};if(el.value.trim()===''){delete fx[fl]}else fx[fl]=el.value.trim();delete fx.ok;
+    const r=f.rows.find(x=>x.i===i);if(fl==='rate'&&r){if(el.value.trim()===''){delete RATES[rkey(r)]}else RATES[rkey(r)]=num(el.value);saveRates()}
+    if(!Object.keys(fx).length)delete f.fix[i];render()});
+  v.querySelectorAll('input[data-thr]').forEach(el=>el.onchange=()=>{S[el.dataset.thr]=num(el.value)||S[el.dataset.thr];render()});
+  v.querySelectorAll('textarea[data-k]').forEach(el=>el.oninput=()=>{S.inputs[el.dataset.k]=S.inputs[el.dataset.k]||{};S.inputs[el.dataset.k]._notes=el.value});
+}
+function emptyDay(k){
+  const d=new Date(k+'T00:00:00');
+  const loaded=S.files.filter(f=>f.single).sort((a,b)=>a.start-b.start);
+  return`<p style="color:var(--mute)">No punch report for <b>${DAYS[d.getDay()]} ${mdy(d)}</b> yet — drop that day's Punch Report above and it lands here by its date automatically.</p>`+
+    (loaded.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b style="font-size:11px;letter-spacing:.5px;color:var(--mute)">LOADED DAYS:</b>${loaded.map(f=>`<span class="sc" data-go="${f.key}">${DAYS[f.start.getDay()]} ${mdy(f.start).slice(0,5)}<small>${f.rows.length} rows</small></span>`).join('')}</div>`:'');
+}
+function siteTitle(){return document.getElementById('siteName').value||siteLbl()}
+
+function repHead(dateStr){return`<div class="rhead"><div class="rlogo"><img src="data:image/png;base64,${LOGO_B64}" alt="Lyneer"></div><div class="rlab">SITE:</div><div class="rsite">${esc(siteTitle())}</div><div class="rlab">DATE:</div><div class="rdate">${esc(dateStr)}</div></div>`}
+function sumTable(k,A,opts={}){
+  let h=`<div class="scroll"><table class="orig"><thead><tr><th>Department</th><th>Active Count</th><th>Handshake HC</th><th>Reg Hours</th><th>OT Hours</th><th>DT Hours</th><th>Total Hours</th><th>Total Billing</th><th>Handshake Hrs</th><th>Volume</th><th>PPH</th><th>CPP</th>${opts.inv?'<th>Invoice $</th><th>Diff</th>':''}</tr></thead><tbody>`;
+  BUCKETS.forEach(b=>{
+    const a=A.b[b];
+    const I=opts.ro?opts.ro[b]:inp(k,b);
+    const vol=num(I.vol),pph=vol&&a.tot?vol/a.tot:0,cpp=vol?a.pay/vol:0;
+    const cnt=opts.cnt?opts.cnt[b]:a.names.size;
+    const field=(fl,val)=>opts.ro?(val?(fl==='hc'?num(val):f2(num(val))):'–'):`<input data-k="${k}" data-b="${b}" data-f="${fl}" value="${esc(val)}" inputmode="decimal">`;
+    h+=`<tr class="${a.tot||a.pay?'':'zero'}" data-b="${b}"><td><b>${b}</b></td><td>${cnt||'–'}</td><td>${field('hc',I.hc)}</td><td>${hr(a.reg)}</td><td class="${a.ot?'ot':''}">${hr(a.ot)}</td><td class="${a.dt?'neg':''}">${hr(a.dt)}</td><td><b>${hr(a.tot)}</b></td><td>${a.pay?$m(a.pay):'–'}</td>
+      <td>${field('hs',I.hs)}</td><td>${field('vol',I.vol)}</td><td class="pph">${pph?f2(pph):'–'}</td><td class="cpp">${cpp?'$'+cpp.toFixed(3):'–'}</td>
+      ${opts.inv?`<td><input data-k="${k}" data-b="${b}" data-f="inv" value="${esc(inp(k,b).inv)}" inputmode="decimal"></td><td class="diff">${diffCell(a.pay,inp(k,b).inv)}</td>`:''}</tr>`;
+  });
+  const T=A.t;const tv=opts.ro?BUCKETS.reduce((s,b)=>s+num(opts.ro[b].vol),0):BUCKETS.reduce((s,b)=>s+num(inp(k,b).vol),0);
+  const ths=opts.ro?BUCKETS.reduce((s,b)=>s+num(opts.ro[b].hs),0):BUCKETS.reduce((s,b)=>s+num(inp(k,b).hs),0);
+  const thc=opts.ro?BUCKETS.reduce((s,b)=>s+num(opts.ro[b].hc),0):BUCKETS.reduce((s,b)=>s+num(inp(k,b).hc),0);
+  const ti=opts.inv?BUCKETS.reduce((s,b)=>s+num(inp(k,b).inv),0):0;
+  h+=`<tr class="tot"><td>TOTALS</td><td>${opts.cnt?opts.cnt._t:T.head}</td><td>${thc||'–'}</td><td>${hr(T.reg)}</td><td>${hr(T.ot)}</td><td>${hr(T.dt)}</td><td>${hr(T.tot)}</td><td>${$m(T.pay)}</td><td class="ths">${ths?f2(ths):'–'}</td><td class="tv">${tv?f2(tv):'–'}</td><td class="tpph">${tv&&T.tot?f2(tv/T.tot):'–'}</td><td class="tcpp">${tv?'$'+(T.pay/tv).toFixed(3):'–'}</td>${opts.inv?`<td class="ti">${ti?$m(ti):'–'}</td><td class="tdiff">${(()=>{const bs=BUCKETS.filter(b=>inp(k,b).inv!=='');if(!bs.length)return'–';const d=bs.reduce((s2,b)=>s2+A.b[b].pay-num(inp(k,b).inv),0);return`<span class="${Math.abs(d)<.01?'pos':'neg'}">${$m(d)}</span>`})()}</td>`:''}</tr></tbody></table></div>`;
+  return h;
+}
+function diffCell(pay,inv){if(inv===''||inv==null)return'–';const d=pay-num(inv);return`<span class="${Math.abs(d)<.01?'pos':'neg'}">${$m(d)}</span>`}
+function recalc(){ // light refresh of computed cells without losing focus
+  const a=document.activeElement,id=a&&a.dataset?{k:a.dataset.k,b:a.dataset.b,f:a.dataset.f,src:a.dataset.src,pos:a.selectionStart}:null;
+  render();
+  if(id&&id.k){const el=document.querySelector(`input[data-k="${id.k}"][data-b="${id.b}"][data-f="${id.f}"]${id.src?`[data-src="${id.src}"]`:':not([data-src])'}`);if(el){el.focus();try{el.setSelectionRange(id.pos,id.pos)}catch(e){}}}
+}
+function kpis(T,extra=''){
+  return`<div class="kpis"><div class="kpi"><div class="l">Headcount</div><div class="v">${T.head}</div></div><div class="kpi"><div class="l">Reg Hours</div><div class="v">${f2(T.reg)}</div></div><div class="kpi"><div class="l">OT Hours (1.5×)</div><div class="v ${T.ot?'ot':''}">${f2(T.ot)}</div></div><div class="kpi"><div class="l">DT Hours (2×)</div><div class="v ${T.dt?'neg':''}">${f2(T.dt)}</div></div><div class="kpi"><div class="l">Total Hours</div><div class="v">${f2(T.tot)}</div></div><div class="kpi"><div class="l">Total Billing</div><div class="v">${$m(T.pay)}</div></div>${extra}</div>`;
+}
+/* ---------- LOST HOURS: everything taken off billing for the week ---------- */
+function lostHours(W){
+  const files=W.days.map(x=>x.f).filter(Boolean).concat(W.ranges);
+  const snap=()=>{const m={};files.forEach(f=>f.rows.forEach(r=>{m[f.key+'|'+r.i]={tot:r.tot,reg:r.reg,ot:r.ot,dt:r.dt||0,pay:r.pay,removed:r.removed,deleted:r.deleted,trimmed:r.trimmed}}));return m};
+  reprice();const now=snap();
+  NODED=NODEL=NOLUNCH=true;reprice();const full=snap();NODED=NODEL=NOLUNCH=false;reprice();
+  const L=[];
+  files.forEach(f=>f.rows.forEach(r=>{const k=f.key+'|'+r.i,a=full[k],b=now[k];if(!a||!b)return;
+    const dh=a.tot-b.tot,dp=a.pay-b.pay;if(dh<.001&&Math.abs(dp)<.005)return;
+    const x=(f.fix||{})[r.i]||{},why=[];
+    if(b.deleted)why.push('Deleted');
+    else{if(b.removed)why.push('Handshake HC — removed');if(b.trimmed)why.push('Handshake hrs — trimmed');if(x.lunchDed!=null&&dh>.001)why.push('No lunch — '+x.lunchDed+' min deducted')}
+    if(!why.length)why.push('OT moved (hours removed earlier in week)');
+    L.push({f,d:f.start,name:r.name,dept:r.dept,line:r.bucket,why:why.join(' + '),kind:why[0],punch:a.tot,billed:b.tot,hrs:dh,pay:dp,reg:a.reg-b.reg,ot:a.ot-b.ot,dt:a.dt-b.dt})}));
+  // removed / deleted people: no names — one line per day + line + reason
+  const anon=x=>x.kind==='Deleted'||x.kind==='Handshake HC — removed';
+  const grp={};L.filter(anon).forEach(x=>{const k=iso(x.d)+'|'+x.line+'|'+x.kind;const g=grp[k]=grp[k]||{...x,n:new Set(),punch:0,billed:0,hrs:0,pay:0,reg:0,ot:0,dt:0,depts:new Set()};
+    g.n.add(x.name);g.depts.add(x.dept);['punch','billed','hrs','pay','reg','ot','dt'].forEach(q=>g[q]+=x[q])});
+  const kept=L.filter(x=>!anon(x));L.length=0;kept.forEach(x=>L.push(x));
+  Object.values(grp).forEach(g=>L.push({...g,name:g.n.size+' associate'+(g.n.size>1?'s':''),dept:[...g.depts].join(', '),anon:true,cnt:g.n.size,nset:g.n}));
+  L.sort((p,q)=>p.d-q.d||LOST_ORDER.indexOf(p.kind)-LOST_ORDER.indexOf(q.kind)||p.name.localeCompare(q.name));
+  const by=key=>{const o={};L.forEach(x=>{const g=o[x[key]]=o[x[key]]||{n:new Set(),hrs:0,pay:0};(x.nset?[...x.nset]:[x.name]).forEach(n=>g.n.add(n));g.hrs+=x.hrs;g.pay+=x.pay});return o};
+  return{L,hrs:L.reduce((a,x)=>a+x.hrs,0),pay:L.reduce((a,x)=>a+x.pay,0),people:new Set(L.filter(x=>x.hrs>.001).flatMap(x=>x.nset?[...x.nset]:[x.name])).size,byKind:by('kind'),byLine:by('line')};
+}
+const LOST_ORDER=['Handshake HC — removed','Handshake hrs — trimmed','Deleted','No lunch — 30 min deducted','OT moved (hours removed earlier in week)'];
+function lostView(W){
+  const X=lostHours(W);
+  let h=`<div class="ttl"><h2>${esc(siteTitle())} — LOST HOURS REPORT</h2><span class="m">W.E. ${mdy(W.sat)} · ${mdy(W.sun)} – ${mdy(W.sat)}</span></div>`;
+  h+=`<div class="kpis"><div class="kpi"><div class="l">People</div><div class="v">${X.people}</div></div><div class="kpi"><div class="l">Hours Lost</div><div class="v neg">${f2(X.hrs)}</div></div><div class="kpi"><div class="l">Billing Lost</div><div class="v neg">${$m(X.pay)}</div></div></div>`;
+  h+=`<div class="noprint" style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap"><button class="pri" id="btnLostX">EXPORT LOST HOURS TO EXCEL</button><button data-xdel="1">📋 EXPORT DELETED ASSOCIATES LIST</button></div>`;
+  if(!X.L.length)return h+`<div class="plan" style="border-color:var(--good)">✓ No hours taken off this week.</div>`;
+  const kinds=Object.keys(X.byKind).sort((a,b)=>LOST_ORDER.indexOf(a)-LOST_ORDER.indexOf(b));
+  h+=`<div style="display:flex;gap:16px;flex-wrap:wrap"><div style="min-width:0;flex:1 1 340px"><h3>By Reason</h3><div class="scroll"><table class="orig"><thead><tr><th>Reason</th><th>People</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${kinds.map(k=>{const g=X.byKind[k];return`<tr><td style="text-align:left"><b>${esc(k)}</b></td><td>${g.n.size}</td><td>${f2(g.hrs)}</td><td class="neg">${$m(g.pay)}</td></tr>`}).join('')}
+    <tr class="tot"><td>TOTAL</td><td>${X.people}</td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div></div>
+   <div style="min-width:0;flex:1 1 300px"><h3>By Line</h3><div class="scroll"><table class="orig"><thead><tr><th>Line</th><th>People</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${BUCKETS.filter(b=>X.byLine[b]).map(b=>{const g=X.byLine[b];return`<tr><td><b>${b}</b></td><td>${g.n.size}</td><td>${f2(g.hrs)}</td><td class="neg">${$m(g.pay)}</td></tr>`}).join('')}
+    <tr class="tot"><td>TOTAL</td><td>${X.people}</td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div></div></div>`;
+  h+=`<h3>Detail</h3><div class="scroll"><table class="orig"><thead><tr><th>Date</th><th>Employee</th><th>Dept</th><th>Line</th><th>Reason</th><th>Punch Hrs</th><th>Billed Hrs</th><th>Hrs Lost</th><th>Billing Lost</th></tr></thead><tbody>
+    ${X.L.map(x=>`<tr><td>${DAYS[x.d.getDay()]} ${mdy(x.d).slice(0,5)}</td><td style="text-align:left">${x.anon?`<i>${esc(x.name)}</i>`:esc(x.name)}</td><td>${esc(x.dept)}</td><td>${x.line}</td><td style="text-align:left">${esc(x.why)}</td><td>${f2(x.punch)}</td><td>${f2(x.billed)}</td><td class="neg">${x.hrs>.001?f2(x.hrs):'–'}</td><td class="neg">${$m(x.pay)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="5">TOTAL</td><td></td><td></td><td>${f2(X.hrs)}</td><td>${$m(X.pay)}</td></tr></tbody></table></div>`;
+  return h;
+}
+function removedList(W){ // the ONLY place names of deleted / removed associates appear
+  const files=W.days.map(x=>x.f).filter(Boolean).concat(W.ranges);
+  reprice();const now={};files.forEach(f=>f.rows.forEach(r=>{now[f.key+'|'+r.i]={deleted:r.deleted,removed:r.removed}}));
+  NODED=NODEL=true;reprice();
+  const L=[];files.forEach(f=>f.rows.forEach(r=>{const n=now[f.key+'|'+r.i];if(!n||!(n.deleted||n.removed))return;const x=(f.fix||{})[r.i]||{};
+    L.push({d:f.start,name:r.name,emp:r.emp||'',dept:r.dept,line:r.bucket,why:n.deleted?'Deleted':'Handshake HC — removed',io:r.io||'',reg:r.reg,ot:r.ot,dt:r.dt||0,hrs:r.tot,pay:r.pay,when:x.delAt?new Date(x.delAt):null})}));
+  NODED=NODEL=false;reprice();
+  return L.sort((a,b)=>a.d-b.d||a.why.localeCompare(b.why)||a.name.localeCompare(b.name));
+}
+async function exportRemoved(){
+  if(typeof ExcelJS==='undefined')return alert('Excel library did not load — check your internet connection and reload.');
+  const W=weekFiles(),L=removedList(W),t=siteTitle(),wb=new ExcelJS.Workbook();
+  if(!L.length)return alert('No deleted or removed associates this week.');
+  const ws=wb.addWorksheet('DELETED ASSOCIATES',{views:[{showGridLines:false}],properties:{tabColor:{argb:'FFC0392B'}},pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  xHeader(wb,ws,t,'W.E. '+mdy(W.sat));
+  [11,26,10,9,15,22,24,8,8,8,9,12].forEach((w2,i)=>ws.getColumn(i+1).width=w2);
+  const G='FFE7E6E6',Y='FFFFF2CC',C='ABCDEFGHIJKL';
+  let row=7;ws.mergeCells(`A${row}:L${row}`);xSet(ws,'A'+row,'DELETED / REMOVED ASSOCIATES — '+mdy(W.sun)+' to '+mdy(W.sat),{h:'left',color:'FFFFFFFF',fill:'FFC0392B',sz:13});row+=2;
+  const top=row;['DATE','EMPLOYEE','EMP #','DEPT','LINE','REASON','PUNCHES','REG','OT','DT','HRS','BILLING'].forEach((h2,i)=>xSet(ws,C[i]+row,h2,{fill:G}));row++;
+  const r1=row;
+  L.forEach(x=>{[DAYS[x.d.getDay()]+' '+mdy(x.d).slice(0,5),x.name,x.emp,x.dept,x.line,x.why,x.io,+x.reg.toFixed(2),+x.ot.toFixed(2),+x.dt.toFixed(2),+x.hrs.toFixed(2),+x.pay.toFixed(2)]
+    .forEach((v,i)=>xSet(ws,C[i]+row,v,{b:false,h:i===1||i===5||i===6?'left':'center',fmt:i===11?XC.$:i>=7?XC.h:undefined}));row++});
+  ws.mergeCells(`A${row}:G${row}`);xSet(ws,'A'+row,`TOTAL — ${new Set(L.map(x=>x.name)).size} associates`,{fill:Y});
+  ['H','I','J','K','L'].forEach((c,i)=>xSet(ws,c+row,F(`SUM(${c}${r1}:${c}${row-1})`,+L.reduce((a,x)=>a+[x.reg,x.ot,x.dt,x.hrs,x.pay][i],0).toFixed(2)),{fmt:i===4?XC.$:XC.h,fill:Y}));
+  xBox(ws,top,1,row,12);
+  const buf=await wb.xlsx.writeBuffer();
+  const code=(t.replace(/^MULTI-SITE.*/,'MULTI')||siteLbl()).replace(/[^\w]/g,'');
+  await saveFile(`${code}_DELETED_ASSOCIATES_W.E._${mdy(W.sat)}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
+async function exportLost(){
+  if(typeof ExcelJS==='undefined')return alert('Excel library did not load — check your internet connection and reload.');
+  const W=weekFiles(),X=lostHours(W),t=siteTitle(),wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('LOST HOURS',{views:[{showGridLines:false}],properties:{tabColor:{argb:'FFC0392B'}},pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  xHeader(wb,ws,t,'W.E. '+mdy(W.sat));
+  [11,26,9,15,34,11,11,11,13,13].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const G='FFE7E6E6',Y='FFFFF2CC';
+  let row=7;ws.mergeCells(`A${row}:I${row}`);xSet(ws,'A'+row,'LOST HOURS REPORT — '+mdy(W.sun)+' to '+mdy(W.sat),{h:'left',color:'FFFFFFFF',fill:'FFC0392B',sz:13});row+=2;
+  // by reason
+  const kinds=Object.keys(X.byKind).sort((a,b)=>LOST_ORDER.indexOf(a)-LOST_ORDER.indexOf(b));
+  const top=row;['REASON','PEOPLE','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,['A','C','D','E'][i]+row,h2,{fill:G}));ws.mergeCells(`A${row}:B${row}`);row++;
+  const k1=row;kinds.forEach(k=>{const g=X.byKind[k];ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,k,{h:'left',b:false});xSet(ws,'C'+row,g.n.size,{b:false});xSet(ws,'D'+row,+g.hrs.toFixed(2),{fmt:XC.h,b:false});xSet(ws,'E'+row,+g.pay.toFixed(2),{fmt:XC.$,b:false});row++});
+  ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});xSet(ws,'C'+row,X.people,{fill:Y});
+  xSet(ws,'D'+row,F(`SUM(D${k1}:D${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'E'+row,F(`SUM(E${k1}:E${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top,1,row,5);row+=2;
+  // by line
+  const top2=row;['LINE','PEOPLE','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,['A','C','D','E'][i]+row,h2,{fill:G}));ws.mergeCells(`A${row}:B${row}`);row++;
+  const l1=row;BUCKETS.filter(b=>X.byLine[b]).forEach(b=>{const g=X.byLine[b];ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,b,{h:'left',b:false});xSet(ws,'C'+row,g.n.size,{b:false});xSet(ws,'D'+row,+g.hrs.toFixed(2),{fmt:XC.h,b:false});xSet(ws,'E'+row,+g.pay.toFixed(2),{fmt:XC.$,b:false});row++});
+  ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});xSet(ws,'C'+row,X.people,{fill:Y});
+  xSet(ws,'D'+row,F(`SUM(D${l1}:D${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'E'+row,F(`SUM(E${l1}:E${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top2,1,row,5);row+=2;
+  // detail
+  const top3=row;['DATE','EMPLOYEE','DEPT','LINE','REASON','PUNCH HRS','BILLED HRS','HRS LOST','BILLING LOST'].forEach((h2,i)=>xSet(ws,'ABCDEFGHI'[i]+row,h2,{fill:G}));row++;
+  const d1=row;
+  X.L.forEach(x=>{const v=[DAYS[x.d.getDay()]+' '+mdy(x.d).slice(0,5),x.name,x.dept,x.line,x.why,+x.punch.toFixed(2),+x.billed.toFixed(2),+x.hrs.toFixed(2),+x.pay.toFixed(2)];
+    v.forEach((val,i)=>xSet(ws,'ABCDEFGHI'[i]+row,val,{b:false,h:i===1||i===4?'left':'center',fmt:i===8?XC.$:i>=5?XC.h:undefined}));row++});
+  if(!X.L.length){ws.mergeCells(`A${row}:I${row}`);xSet(ws,'A'+row,'No hours taken off this week.',{b:false});row++}
+  ws.mergeCells(`A${row}:G${row}`);xSet(ws,'A'+row,'TOTAL',{fill:Y});
+  xSet(ws,'H'+row,F(`SUM(H${d1}:H${row-1})`,+X.hrs.toFixed(2)),{fmt:XC.h,fill:Y});xSet(ws,'I'+row,F(`SUM(I${d1}:I${row-1})`,+X.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xBox(ws,top3,1,row,9);
+  const buf=await wb.xlsx.writeBuffer();
+  const code=(t.replace(/^MULTI-SITE.*/,'MULTI')||siteLbl()).replace(/[^\w]/g,'');
+  await saveFile(`${code}_LOST_HOURS_W.E._${mdy(W.sat)}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
+/* ---------- HANDSHAKE: Active Count vs Handshake HC, Report Hrs vs Handshake Hrs → deduct ---------- */
+function priced(fn){NODED=true;reprice();const a=fn();NODED=false;reprice();return a}
+const hsv=(k,b,fl)=>{const v=((S.inputs[k]||{})[b]||{})[fl];return v===''||v==null?null:num(v)};
+function bestRemoveSet(c,n,E){ // n people whose hours add up closest to E without going over (else fewest hours)
+  if(n<=0)return[];if(c.length<=n)return c.slice();
+  const X=E==null?0:Math.max(0,Math.round(E*4));
+  if(E!=null&&X<=6000&&c.length*n*X<=3e7){
+    const w=c.map(r=>Math.max(0,Math.round(r.left*4)));
+    const dp=Array.from({length:n+1},()=>new Array(X+1).fill(null));dp[0][0]=[];
+    c.forEach((r,ci)=>{for(let k=Math.min(n,ci+1);k>=1;k--)for(let v=X;v>=w[ci];v--){const q=dp[k-1][v-w[ci]];if(q&&!dp[k][v])dp[k][v]=q.concat(ci)}});
+    for(let v=X;v>=0;v--)if(dp[n][v])return dp[n][v].map(ci=>c[ci]);
+  }
+  return c.slice().sort((a,b)=>a.left-b.left).slice(0,n);
+}
+function hsDeduct(f){
+  const k=f.key,ded={},res={removed:0,removedH:0,trimN:0,trimH:0,left:[]};
+  priced(()=>{
+    const day={};f.rows.forEach(r=>{if(r.base>0)day[nkey(r)]=(day[nkey(r)]||0)+r.base}); // person's whole day (OT people are removed/trimmed last)
+    BUCKETS.forEach(b=>{
+      const t=hsv(k,b,'hs'),c=hsv(k,b,'hc');if(t==null&&c==null)return;
+      const ppl={};f.rows.filter(r=>r.bucket===b&&r.base>.001).forEach(r=>{const p=ppl[nkey(r)]=ppl[nkey(r)]||{name:r.name,rows:[],left:0,t:day[nkey(r)]>8?1:0};p.rows.push({r,left:r.base});p.left+=r.base});
+      const P=Object.values(ppl);let E=t==null?null:P.reduce((a,p)=>a+p.left,0)-t;
+      // 1) headcount over → take whole people off (the ones whose hours best cover the hours over)
+      const n=c==null?0:Math.max(0,P.length-c);
+      if(n){let cand=P.filter(p=>p.t===0);if(cand.length<n)cand=P.slice();
+        const set=bestRemoveSet(cand,n,E!=null&&E>0?E:null);
+        set.forEach(p=>{p.rows.forEach(x=>{ded[x.r.i]=(ded[x.r.i]||0)+x.left;x.left=0});res.removed++;res.removedH+=p.left;if(E!=null)E-=p.left;p.left=0});
+        if(set.length<n)res.left.push(`${b}: only ${set.length} of ${n} people could be removed`);}
+      // 2) hours still over → trim in 15-min steps, spread across the line (non-OT people first)
+      if(E!=null&&E>.001){let u=Math.round(E*4),g=0;const trimmed=new Set();
+        for(const maxT of [0,1]){const grp=P.filter(p=>p.t<=maxT&&p.left>.26).sort((a,b)=>b.left-a.left);
+          while(u>0&&grp.some(p=>p.left>.26)&&g++<100000)for(const p of grp){if(u<=0)break;if(p.left<=.26)continue;
+            const x=p.rows.filter(y=>y.left>.26).sort((a,b)=>b.left-a.left)[0];if(!x)continue;
+            x.left-=.25;p.left-=.25;ded[x.r.i]=(ded[x.r.i]||0)+.25;u--;res.trimH+=.25;trimmed.add(p.name)}
+          if(u<=0)break}
+        res.trimN=res.trimN+trimmed.size;
+        if(u>0)res.left.push(`${b}: still ${f2(u/4)} hrs over handshake`);}
+      if(E!=null&&E<-.001)res.left.push(`${b}: ${f2(-E)} hrs UNDER handshake — nothing deducted`);
+      if(c!=null&&P.length<c)res.left.push(`${b}: active count ${P.length} is under handshake HC ${c}`);
+    });
+  });
+  f.ded=ded;f.dedRes=res;render();
+}
+function delImpact(files){ // what deleted people would have billed (each person's OT stands alone)
+  NODEL=true;reprice();
+  const out=files.map(f=>{const L=f?f.rows.filter(r=>((f.fix||{})[r.i]||{}).del).map(r=>({i:r.i,name:r.name,bucket:r.bucket,hrs:r.tot,reg:r.reg,ot:r.ot,dt:r.dt||0,pay:r.pay})):[];
+    return{list:L,hrs:L.reduce((a,x)=>a+x.hrs,0),pay:L.reduce((a,x)=>a+x.pay,0),n:new Set(L.map(x=>x.name)).size}});
+  NODEL=false;reprice();return out;
+}
+function delPanel(f){
+  const D=delImpact([f])[0];if(!D.list.length)return'';
+  const by={};D.list.forEach(x=>{const g=by[x.bucket]=by[x.bucket]||{n:new Set(),hrs:0,pay:0};g.n.add(x.name);g.hrs+=x.hrs;g.pay+=x.pay});
+  return`<h3>Deleted</h3><div class="mvbox" style="display:block;border-color:#f3b4b0">
+   <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline"><b class="neg">${D.n} ${D.n===1?'person':'people'} deleted</b><span><b class="neg">−${f2(D.hrs)}</b> hrs</span><span><b class="neg">−${$m(D.pay)}</b> billing</span>
+    <span class="noprint" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="mini" data-xdel="1">📋 EXPORT DELETED LIST</button><button class="mini" data-act="undellast" data-f="${f.key}">UNDO LAST DELETE</button><button class="mini x" data-act="undelall" data-f="${f.key}">UNDO ALL DELETES</button></span></div>
+   <div class="scroll" style="margin-top:6px"><table class="itbl"><thead><tr><th>Line</th><th>People</th><th>Hrs</th><th>Billing</th></tr></thead><tbody>
+   ${BUCKETS.filter(b=>by[b]).map(b=>`<tr><td style="text-align:left"><b>${b}</b></td><td>${by[b].n.size}</td><td>${f2(by[b].hrs)}</td><td class="neg">−${$m(by[b].pay)}</td></tr>`).join('')}
+   <tr class="tot"><td>TOTAL DELETED</td><td>${D.n}</td><td>${f2(D.hrs)}</td><td class="neg">−${$m(D.pay)}</td></tr></tbody></table></div>
+   <div class="hint">Deleted people are left off every report and export.</div></div>`;
+}
+function hsPanel(f){
+  const k=f.key;
+  const A0=priced(()=>agg(rowsFor(f))),A1=agg(rowsFor(f));
+  const has=b=>hsv(k,b,'hs')!=null||hsv(k,b,'hc')!=null,any=BUCKETS.some(has),applied=Object.keys(f.ded||{}).length>0;
+  const dc=(d,on,fmt)=>`<td class="${d>.001?'pos':d<-.001?'neg':''}">${on?(d>0?'+':'')+fmt(d):'–'}</td>`;
+  const field=(b,fl)=>`<input data-k="${k}" data-b="${b}" data-f="${fl}" data-src="rb" value="${esc(((S.inputs[k]||{})[b]||{})[fl]||'')}" inputmode="decimal" placeholder="—">`;
+  let h=`<h3>Handshake — Headcount &amp; Hours</h3><div class="mvbox noprint" style="display:block">
+   <div class="scroll"><table class="orig rb"><thead><tr><th>Line</th><th>Active Count</th><th>Handshake HC</th><th>HC Over / Under</th><th>Punch Hrs</th><th>Handshake Hrs</th><th>Hrs Over / Under</th><th>Report HC</th><th>Report Hrs</th><th>Billing Deducted</th></tr></thead><tbody>`;
+  const T={c0:0,hc:0,h0:0,hs:0,c1:0,h1:0,d:0};
+  BUCKETS.forEach(b=>{const a0=A0.b[b],a1=A1.b[b],c=hsv(k,b,'hc'),t=hsv(k,b,'hs'),c0=a0.names.size,c1=a1.names.size,dp=a0.pay-a1.pay;
+    T.c0+=c0;T.h0+=a0.tot;T.c1+=c1;T.h1+=a1.tot;T.d+=dp;if(c!=null)T.hc+=c;if(t!=null)T.hs+=t;
+    h+=`<tr class="${a0.tot||c!=null||t!=null?'':'zero'}"><td><b>${b}</b></td><td>${c0||'–'}</td><td>${field(b,'hc')}</td>${dc(c==null?0:c0-c,c!=null,x=>String(x))}
+     <td>${hr(a0.tot)}</td><td>${field(b,'hs')}</td>${dc(t==null?0:a0.tot-t,t!=null,f2)}
+     <td><b>${c1||'–'}</b>${c1!==c0?` <span class="tag rm">${c1-c0}</span>`:''}</td><td><b>${hr(a1.tot)}</b>${Math.abs(a1.tot-a0.tot)>.001?` <span class="tag rm">${f2(a1.tot-a0.tot)}</span>`:''}</td>
+     <td class="${dp>.005?'neg':''}">${dp>.005?'−'+$m(dp):'–'}</td></tr>`});
+  h+=`<tr class="tot"><td>TOTAL</td><td>${A0.t.head}</td><td>${T.hc||'–'}</td><td></td><td>${f2(T.h0)}</td><td>${T.hs?f2(T.hs):'–'}</td><td></td><td>${A1.t.head}</td><td>${f2(T.h1)}</td><td>${T.d>.005?'−'+$m(T.d):'–'}</td></tr></tbody></table></div>
+   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+    <button class="pri" data-act="hsded" data-f="${k}" ${any?'':'disabled'}>DEDUCT TO MATCH HANDSHAKE</button>
+    ${applied?`<button data-act="hsundo" data-f="${k}">UNDO DEDUCTIONS</button>`:''}
+    <span class="hint">Over on headcount: whole people come off (the ones whose hours best cover the hours over). Still over on hours: trimmed in 15-min steps across the line. People with OT that day come off last. OT / DT and billing are recalculated after.</span></div>`;
+  if(applied&&f.dedRes){const x=f.dedRes,parts=[];
+    if(x.removed)parts.push(`removed ${x.removed} associate${x.removed>1?'s':''} (${f2(x.removedH)} hrs)`);
+    if(x.trimH)parts.push(`trimmed ${f2(x.trimH)} hrs across ${x.trimN} associate${x.trimN>1?'s':''}`);
+    const list=f.rows.filter(r=>(f.ded||{})[r.i]>0&&!r.removed).sort((a,b)=>a.bucket.localeCompare(b.bucket)||a.name.localeCompare(b.name));
+    h+=`<div class="plan"><b>${parts.length?parts.join(' · '):'Nothing to deduct.'}</b> · billing −${$m(T.d)}${x.left.length?`<div class="warn" style="margin:6px 0 0">${x.left.map(esc).join('<br>')}</div>`:''}
+     ${list.length?`<details style="margin-top:6px"><summary>Who was trimmed (${list.length})</summary><div class="in"><table><thead><tr><th>Employee</th><th>Line</th><th>Punch Hrs</th><th>Deducted</th><th>Billed Hrs</th></tr></thead><tbody>${list.map(r=>`<tr><td>${esc(r.name)}</td><td style="text-align:left">${r.bucket}</td><td>${f2(r.base)}</td><td class="neg">−${f2(f.ded[r.i])}${r.removed?' <span class="tag rm">removed</span>':''}</td><td>${f2(r.hrs)}</td></tr>`).join('')}</tbody></table></div></details>`:''}</div>`}
+  else if(applied)h+=`<div class="plan"><b>Deductions applied.</b> · billing −${$m(T.d)}</div>`;
+  return h+'</div>';
+}
+function dayView(f){
+  const rows=rowsFor(f),A=agg(rows);
+  let h=`<div class="ttl"><h2>${esc(siteTitle())} — ${f.single?DAYS[f.start.getDay()].toUpperCase()+' '+mdy(f.start):'PERIOD '+mdy(f.start)+' – '+mdy(f.end)}</h2><span class="m">${esc(f.name)}</span></div>`;
+  h+=kpis(A.t,`<div class="kpi"><div class="l">Avg $/Hr</div><div class="v">${A.t.tot?$m(A.t.pay/A.t.tot):'–'}</div></div>`);
+  h+=rateLine();
+  if(!rows.length)h+=`<div class="warn">No rows for site(s) ${esc(siteLbl())} in this file. Pick a site in the Site Filter above.</div>`;
+  const neg=rows.filter(r=>r.tot<0||r.reg<0);
+  if(neg.length)h+=`<div class="warn"><b>${neg.length} negative-hour correction row(s)</b> included in totals: ${neg.slice(0,8).map(r=>esc(r.name)+' ('+esc(r.dept)+' '+f2(r.tot)+')').join(', ')}${neg.length>8?'…':''}</div>`;
+  h+=`<div class="sheet">`+repHead(f.single?mdy(f.start):mdy(f.start)+' – '+mdy(f.end))+sumTable(f.key,A)+`</div>`;
+  h+=hsPanel(f);
+  h+=delPanel(f);
+  h+=issuePanel(f);
+  h+=`<h3>Notes</h3><textarea data-k="${f.key}" placeholder="Notes for this day…">${esc((S.inputs[f.key]||{})._notes||'')}</textarea>`;
+  h+=deptDetail(rows,rawFor(f))+empDetail(rows,f);
+  return h;
+}
+function deptDetail(rows,raw){
+  const m={};rows.forEach(r=>{const x=m[r.dept]=m[r.dept]||{b:r.bucket,n:new Set(),reg:0,ot:0,dt:0,tot:0,pay:0,o:0};if(!r.adj&&r.tot>0)x.n.add(r.name);x.reg+=r.reg;x.ot+=r.ot;x.dt+=(r.dt||0);x.tot+=r.tot;x.pay+=r.pay});
+  const showD=!!raw;if(raw)raw.forEach(r=>{const x=m[r.dept]=m[r.dept]||{b:r.bucket,n:new Set(),reg:0,ot:0,dt:0,tot:0,pay:0,o:0};x.o+=r.tot});
+  const moved=showD&&Object.values(m).some(x=>Math.abs(x.tot-x.o)>.001);
+  const ks=Object.keys(m).sort();
+  return`<details ${moved?'open':''}><summary>Department breakdown (${ks.length})${moved?' — showing moved hours':''}</summary><div class="in"><table><thead><tr><th>Department</th><th>Bucket</th><th>Count</th><th>Reg</th><th>OT</th><th>DT</th>${moved?'<th>Timecard Hrs</th><th>Moved</th>':''}<th>Total</th><th>Billing</th></tr></thead><tbody>${ks.map(k=>{const x=m[k],d=x.tot-x.o;return`<tr><td>${esc(k)}</td><td style="text-align:left">${x.b}</td><td>${x.n.size}</td><td>${hr(x.reg)}</td><td class="${x.ot?'ot':''}">${hr(x.ot)}</td><td>${hr(x.dt)}</td>${moved?`<td>${hr(x.o)}</td><td class="${d>.001?'pos':d<-.001?'neg':''}">${Math.abs(d)>.001?(d>0?'+':'')+f2(d):'–'}</td>`:''}<td><b>${hr(x.tot)}</b></td><td>${$m(x.pay)}</td></tr>`}).join('')}</tbody></table></div></details>`;
+}
+function empDetail(rows,f){
+  const s=rows.filter(r=>!r.adj&&!r.deleted&&!r.removed).sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
+  return`<details ${f&&S.openEmp===f.key?'open':''} data-emp="${f?f.key:''}"><summary>Timecard detail (${s.length} rows) — ✎ edit hours / rate · 🗑 delete a person</summary><div class="in"><input class="flt" placeholder="Filter name / dept…" data-flt value="${esc(S.flt||'')}"><table><thead><tr><th>Employee</th><th>Department</th><th>Punches</th><th>Reg</th><th>OT</th><th>DT</th><th>Total</th><th>Total Pay</th>${f?'<th class="noprint">Edit</th>':''}</tr></thead><tbody>${s.map(r=>`<tr class="${r.moved?'mv':''}" data-q="${esc((r.name+' '+r.dept).toLowerCase())}"><td>${esc(r.name)}</td><td style="text-align:left">${esc(r.dept)}${r.moved?` <span class="tag">from ${esc(r.from)}</span>`:''}${r.touched?' <span class="tag t2">partly moved</span>':''}${r.removed?' <span class="tag rm">removed — handshake</span>':''}${r.trimmed?` <span class="tag rm">−${f2(r.trimmed)} hrs handshake</span>`:''}${r.fixed?' <span class="tag">corrected</span>':''}${r.salary!=null?` <span class="tag">salary $${f2(r.salary)}/day</span>`:''}${r.savedRate?' <span class="tag">saved rate</span>':''}${r.i!=null&&!r.moved&&isNoRate(f.rows.find(x=>x.i===r.i)||r)&&!r.pay?' <span class="tag rm">no bill rate</span>':''}${r.deleted?' <span class="tag rm">deleted</span>':''}${r.added?` <span class="tag">+${f2(r.added)} hrs</span>`:''}</td><td style="text-align:left;font-size:11px;color:var(--mute)">${esc(r.io||'')}</td><td class="${r.reg<0?'neg':''}">${hr(r.reg)}</td><td class="${r.ot?'ot':''}">${hr(r.ot)}${r.wkOT?' <span class="tag t2">40+</span>':''}</td><td class="${r.dt?'neg':''}">${hr(r.dt||0)}</td><td class="${r.tot<0?'neg':''}">${hr(r.tot)}</td><td>${$m(r.pay)}</td>${f?`<td class="noprint">${r.i!=null&&!r.moved?(r.deleted?`<button class="mini" data-act="undel" data-f="${f.key}" data-i="${r.i}" title="Put this person back">RESTORE</button>`:`<button class="mini" data-act="edit" data-f="${f.key}" data-i="${r.i}" title="Edit hours / rate">✎</button> <button class="mini x" data-act="del" data-f="${f.key}" data-i="${r.i}" title="Delete this person from this day">🗑</button>`):''}</td>`:''}</tr>`).join('')}</tbody></table></div></details>`;
+}
+function deptOptions(f){
+  const all=new Set();S.files.forEach(x=>x.rows.forEach(r=>{if(S.sites.has(r.site))all.add(r.dept)}));
+  return`<datalist id="dl_${f.key}">${[...all].sort().map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
+}
+function beforeRows(f){return f.rows.map(r=>fixRow(f,r)).filter(r=>S.sites.has(r.site))}
+function act(d){
+  const f=S.files.find(x=>x.key===d.f);if(!f)return;
+  if(d.act==='hsded')return hsDeduct(f);
+  if(d.act==='openfill'){const t=document.getElementById('openOut_'+f.key).value,ml=num(document.getElementById('openMeal_'+f.key).value);S.openOut=t;S.openMeal=String(ml);
+    const m=t.match(/^(\d{1,2}):(\d{2})$/);if(!m)return alert('Pick an OUT time first.');const out=(+m[1])*60+(+m[2]);let n=0;f.fix=f.fix||{};
+    f.rows.forEach(r=>{if(!r.open||!r.open.length||r.deleted)return;const x=f.fix[r.i]||{};if(x.hrs!=null&&x.hrs!==''&&!x.openFill)return;
+      const add=r.open.reduce((a,inn)=>a+((out-inn+1440)%1440)/60,0);const hrs=Math.max(0,+(r.raw+add-(add>6?ml/60:0)).toFixed(2));
+      f.fix[r.i]={...x,hrs:String(hrs),openFill:t};n++});
+    alert(`Filled ${n} open punch${n===1?'':'es'} with OUT ${t}${ml?` less ${ml} min meal (shifts over 6 hrs)`:''}.`);return render()}
+  if(d.act==='openclr'){Object.keys(f.fix||{}).forEach(i=>{const x=f.fix[i];if(x&&x.openFill){delete x.hrs;delete x.openFill;if(!Object.keys(x).length)delete f.fix[i]}});return render()}
+  if(d.act==='hsundo'){f.ded={};f.dedRes=null;return render()}
+  if(d.act==='lunchok'||d.act==='lunchded'||d.act==='lunchundo'||d.act==='lunchdedall'){f.fix=f.fix||{};
+    const ded=r=>{const x={...(f.fix[r.i]||{})};if(x.lunchDed!=null)return;const base=x.hrs!=null&&x.hrs!==''?num(x.hrs):r.raw;x.hrs=String(Math.max(0,+(base-.5).toFixed(2)));x.lunchDed=30;f.fix[r.i]=x};
+    if(d.act==='lunchdedall'){const I=issues(f);I.lunch.filter(x=>x.kind==='none'&&!I.ldone(x)).forEach(x=>ded(x.main));return render()}
+    const r=f.rows.find(x=>x.i===+d.i);if(!r)return;const x={...(f.fix[r.i]||{})};
+    if(d.act==='lunchok')x.lunchOk=true;
+    if(d.act==='lunchded'){f.fix[r.i]=x;ded(r);return render()}
+    if(d.act==='lunchundo'){if(x.lunchDed!=null){const base=num(x.hrs)+x.lunchDed/60;delete x.lunchDed;if(Math.abs(base-r.raw)<.005)delete x.hrs;else x.hrs=String(+base.toFixed(2))}delete x.lunchOk}
+    if(Object.keys(x).length)f.fix[r.i]=x;else delete f.fix[r.i];return render()}
+  if(d.act==='fixok'){f.fix=f.fix||{};f.fix[+d.i]={...(f.fix[+d.i]||{}),ok:true};return render()}
+  if(d.act==='fixclr'){const r=f.rows.find(x=>x.i===+d.i);if(f.fix)delete f.fix[+d.i];if(r&&isNoRate(r)&&RATES[rkey(r)]){delete RATES[rkey(r)];saveRates()}return render()}
+  if(d.act==='fillrate'){const I=issues(f);f.fix=f.fix||{};let n=0;I.norate.filter(x=>!I.rdone(x)).forEach(x=>{const dr=deptRate(x.r.dept);if(dr){f.fix[x.r.i]={...(f.fix[x.r.i]||{}),rate:dr.toFixed(2)};n++}});if(!n)alert('No dept average available for these departments — enter rates by hand.');return render()}
+  if(d.act==='edit')return editRow(f,+d.i);
+  if(d.act==='undelall'||d.act==='undellast'){const fx=f.fix||{};const ks=Object.keys(fx).filter(i=>fx[i]&&fx[i].del);if(!ks.length)return;
+    const last=Math.max(...ks.map(i=>fx[i].delAt||0)),pick=d.act==='undelall'?ks:ks.filter(i=>(fx[i].delAt||0)===last);
+    const go=()=>{pick.forEach(i=>{const o={...fx[i]};delete o.del;delete o.delAt;if(Object.keys(o).length)fx[i]=o;else delete fx[i]});render()};
+    return d.act==='undelall'?ask(`Put back all ${new Set(pick.map(i=>nkey(f.rows.find(r=>r.i==i)))).size} deleted people for ${label(f)}?`,'UNDO ALL',go):go()}
+  if(d.act==='del'||d.act==='undel'){const r=f.rows.find(x=>x.i===+d.i);if(!r)return;const same=f.rows.filter(x=>nkey(x)===nkey(r));
+    const go=()=>{f.fix=f.fix||{};const at=Date.now();same.forEach(x=>{const o={...(f.fix[x.i]||{})};if(d.act==='del'){o.del=true;o.delAt=at}else{delete o.del;delete o.delAt}if(Object.keys(o).length)f.fix[x.i]=o;else delete f.fix[x.i]});render()};
+    if(d.act==='undel')return go();
+    const sh=same.reduce((a,x)=>a+(x.tot||0),0),sp=same.reduce((a,x)=>a+(x.pay||0),0);
+    return ask(`Delete ${r.name} from ${label(f)}?\n−${f2(sh)} hrs · −${$m(sp)} billing\nUse UNDO LAST DELETE in the Deleted box to put them back.`,'DELETE',()=>{go();alert(`Deleted ${r.name}: −${f2(sh)} hrs · −${$m(sp)}`)})}
+}
+function weekAgg(W){
+  const fs=W.days.filter(x=>x.f).map(x=>x.f);
+  const src=fs.length?fs:W.ranges;
+  const rows=src.flatMap(rowsFor);
+  const A=agg(rows);
+  // counts = unique people across week; volume/handshake = sum of day inputs
+  const cnt={_t:A.t.head};BUCKETS.forEach(b=>cnt[b]=A.b[b].names.size);
+  const ro={};BUCKETS.forEach(b=>{ro[b]={hs:0,hc:0,vol:0};src.forEach(f=>{const I=(S.inputs[f.key]||{})[b];if(I){ro[b].hs+=num(I.hs);ro[b].hc+=num(I.hc);ro[b].vol+=num(I.vol)}})});
+  return{A,cnt,ro,src,rows};
+}
+function summaryView(W){
+  const{A,cnt,ro,src,rows}=weekAgg(W);
+  const k='WE_'+S.week;
+  if(!src.length)return ratePanel()+'<p>No data for this week.</p>';
+  let h=ratePanel()+`<div class="sheet">`+repHead('W.E. '+mdy(W.sat));
+  const iss=W.days.filter(x=>x.f).map(x=>({d:x.d,I:issues(x.f)})).filter(x=>x.I.openP||x.I.openR||x.I.openL);
+  if(iss.length)h+=`<div class="warn noprint"><b>Open timecard issues:</b> ${iss.map(x=>`${DAYS[x.d.getDay()]} ${mdy(x.d).slice(0,5)} — ${[x.I.openP?x.I.openP+' missed punch':'',x.I.openR?x.I.openR+' no bill rate':'',x.I.openL?x.I.openL+' lunch issue'+(x.I.openL>1?'s':''):''].filter(Boolean).join(', ')}`).join(' · ')}</div>`;
+  h+=`<div class="rsub">${mdy(W.sun)} – ${mdy(W.sat)} · ${W.days.filter(x=>x.f).length} of 7 days loaded${W.ranges.length?' · period file':''}</div>`;
+  h+=sumTable(k,A,{ro,cnt,inv:true});
+  h+=`<h3>Daily Hours / Billing</h3><div class="scroll"><table class="orig"><thead><tr><th>Line</th>${W.days.map(x=>`<th>${DAYS[x.d.getDay()]}<br>${mdy(x.d).slice(0,5)}</th>`).join('')}<th>Week</th></tr></thead><tbody>`;
+  const per=W.days.map(x=>x.f?agg(rowsFor(x.f)):null);
+  BUCKETS.forEach(b=>{if(!A.b[b].tot)return;h+=`<tr><td><b>${b}</b></td>${per.map(p=>`<td>${p?hr(p.b[b].tot):''}</td>`).join('')}<td><b>${hr(A.b[b].tot)}</b></td></tr>`});
+  h+=`<tr class="tot"><td>TOTAL HOURS</td>${per.map(p=>`<td>${p?hr(p.t.tot):''}</td>`).join('')}<td>${hr(A.t.tot)}</td></tr>`;
+  h+=`<tr class="tot"><td>BILLING</td>${per.map(p=>`<td>${p?$m(p.t.pay):''}</td>`).join('')}<td>${$m(A.t.pay)}</td></tr>`;
+  h+=`<tr><td><b>HEADCOUNT</b></td>${per.map(p=>`<td>${p?p.t.head:''}</td>`).join('')}<td><b>${A.t.head}</b></td></tr>`;
+  if(W.days.some(x=>x.f&&Object.keys(x.f.ded||{}).length)){
+    const pre=priced(()=>W.days.map(x=>x.f?agg(rowsFor(x.f)):null));
+    const dh=pre.map((q,n)=>q?q.t.tot-per[n].t.tot:0),d$=pre.map((q,n)=>q?q.t.pay-per[n].t.pay:0),sh=dh.reduce((a,b)=>a+b,0),s$=d$.reduce((a,b)=>a+b,0);
+    h+=`<tr><td><b>HANDSHAKE DEDUCTED HRS</b></td>${dh.map(v=>`<td class="${v>.001?'neg':''}">${v>.001?'−'+f2(v):''}</td>`).join('')}<td class="neg"><b>${sh>.001?'−'+f2(sh):'–'}</b></td></tr>`;
+    h+=`<tr><td><b>HANDSHAKE DEDUCTED $</b></td>${d$.map(v=>`<td class="${v>.005?'neg':''}">${v>.005?'−'+$m(v):''}</td>`).join('')}<td class="neg"><b>${s$>.005?'−'+$m(s$):'–'}</b></td></tr>`;
+  }
+  if(W.days.some(x=>x.f&&Object.values(x.f.fix||{}).some(z=>z&&z.del))){
+    const D=delImpact(W.days.map(x=>x.f||null)),th=D.reduce((a,x)=>a+x.hrs,0),tp=D.reduce((a,x)=>a+x.pay,0);
+    h+=`<tr><td><b>DELETED HRS</b></td>${D.map(x=>`<td class="${x.hrs>.001?'neg':''}">${x.hrs>.001?'−'+f2(x.hrs):''}</td>`).join('')}<td class="neg"><b>${th>.001?'−'+f2(th):'–'}</b></td></tr>`;
+    h+=`<tr><td><b>DELETED $</b></td>${D.map(x=>`<td class="${x.pay>.005?'neg':''}">${x.pay>.005?'−'+$m(x.pay):''}</td>`).join('')}<td class="neg"><b>${tp>.005?'−'+$m(tp):'–'}</b></td></tr>`;
+  }
+  h+=`</tbody></table></div>`;
+  h+=`<h3>Notes</h3><textarea class="notes" data-k="${k}" placeholder="Week notes…">${esc((S.inputs[k]||{})._notes||'')}</textarea></div>`;
+  const ppl={};rows.forEach(r=>{if(r.adj)return;const p=ppl[r.name]=ppl[r.name]||{t:0,ot:0,dt:0,d:new Set()};p.t+=r.tot;p.ot+=r.ot;p.dt+=(r.dt||0);p.d.add(r.dept)});
+  const ot=Object.entries(ppl).filter(([,p])=>p.ot>0||p.dt>0||p.t>40).sort((a,b)=>b[1].t-a[1].t);
+  if(ot.length)h+=`<details><summary>OT / 40+ Hour Watch (${ot.length})</summary><div class="in"><table><thead><tr><th>Employee</th><th>Departments</th><th>Total Hrs</th><th>OT Hrs</th><th>DT Hrs</th></tr></thead><tbody>${ot.map(([n,p])=>`<tr><td>${esc(n)}</td><td style="text-align:left">${esc([...p.d].join(', '))}</td><td>${f2(p.t)}</td><td class="ot">${hr(p.ot)}</td><td class="neg">${hr(p.dt)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  // week vs handshake: only days that have a handshake entered for that line
+  h+=deptDetail(rows,src.flatMap(rawFor));
+  return h;
+}
+
+/* ---------- export (styled like the original W.E. workbook) ---------- */
+const LOGO_B64='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';
+const XC={$:'"$"#,##0.00',$3:'"$"#,##0.000',h:'#,##0.00;[Red]-#,##0.00',n:'0'};
+const THIN={style:'thin',color:{argb:'FF000000'}},MED={style:'medium',color:{argb:'FF000000'}};
+function xBox(ws,r1,c1,r2,c2){ // thin grid + medium outline
+  for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++){const cell=ws.getCell(r,c);
+    cell.border={top:r===r1?MED:THIN,bottom:r===r2?MED:THIN,left:c===c1?MED:THIN,right:c===c2?MED:THIN}}
+}
+function xSet(ws,addr,val,o={}){
+  const c=ws.getCell(addr);c.value=val;
+  c.font={name:'Calibri',size:o.sz||11,bold:o.b!==false,color:o.color?{argb:o.color}:undefined};
+  c.alignment={horizontal:o.h||'center',vertical:'middle',wrapText:true};
+  if(o.fmt)c.numFmt=o.fmt;if(o.fill)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:o.fill}};
+  return c;
+}
+const F=(formula,result)=>({formula,result});
+// column map (matches original): A:B dept, C:D count, E reg, F OT, G:H total, I:J billing, L handshake, N volume, O PPH, P CPP, R invoice, S diff
+function xHeader(wb,ws,title,dateStr){
+  [12,8,9,10,10,10,8,8,10,10,2,12,2,11,9,10,2,13,12].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  [1,2,3].forEach(r=>ws.getRow(r).height=28.5);ws.getRow(6).height=31;
+  const img=wb.addImage({base64:LOGO_B64,extension:'png'});
+  ws.addImage(img,{tl:{col:0.15,row:0.3},ext:{width:330,height:93}});
+  ws.mergeCells('A1:G5');xBox(ws,1,1,5,7);
+  ws.mergeCells('H1:H3');xSet(ws,'H1','SITE:');ws.mergeCells('I1:J3');xSet(ws,'I1',title,{sz:20});
+  ws.mergeCells('H4:H5');xSet(ws,'H4','DATE:');ws.mergeCells('I4:J5');xSet(ws,'I4',dateStr);
+  xBox(ws,1,8,3,10);xBox(ws,4,8,5,10);
+}
+function xBlock(ws,A,opt){ // opt:{cnt, hs(b), vol(b) => value or formula, inv:bool, k}
+  const hdr=[['A6:B6','DEPARTMENT'],['C6','ACTIVE\nCOUNT'],['D6','HANDSHAKE\nHC'],['E6','REG\nHOURS'],['F6','OT HOURS'],['G6','DT\nHOURS'],['H6','TOTAL\nHOURS'],['I6:J6','TOTAL\nBILLING'],['L6','HANDSHAKE\nHRS'],['N6','VOLUME'],['O6','PPH'],['P6','CPP']];
+  if(opt.inv)hdr.push(['R6','INVOICE $'],['S6','DIFF']);
+  hdr.forEach(([rg,t])=>{if(rg.includes(':'))ws.mergeCells(rg);xSet(ws,rg.split(':')[0],t)});
+  const bs=BUCKETS.slice();
+  let r=7;const first=7;
+  bs.forEach(b=>{
+    const x=A.b[b],r2=r+1;
+    [['A','B'],['C','C'],['D','D'],['E','E'],['F','F'],['G','G'],['H','H'],['I','J'],['L','L'],['N','N'],['O','O'],['P','P']].concat(opt.inv?[['R','R'],['S','S']]:[]).forEach(([c1,c2])=>ws.mergeCells(`${c1}${r}:${c2}${r2}`));
+    xSet(ws,'A'+r,b);
+    xSet(ws,'C'+r,opt.cnt?opt.cnt[b]:x.names.size,{fmt:XC.n});
+    xSet(ws,'E'+r,+x.reg.toFixed(2),{fmt:XC.h});
+    xSet(ws,'F'+r,+x.ot.toFixed(2),{fmt:XC.h});
+    xSet(ws,'G'+r,+(x.dt||0).toFixed(2),{fmt:XC.h});
+    xSet(ws,'H'+r,F(`SUM(E${r}:G${r2})`,+x.tot.toFixed(2)),{fmt:XC.h});
+    xSet(ws,'I'+r,+x.pay.toFixed(2),{fmt:XC.$});
+    const hs=opt.hs(b,r),vol=opt.vol(b,r);xSet(ws,'D'+r,opt.hc(b,r),{fmt:XC.n});
+    xSet(ws,'L'+r,hs,{fmt:'#,##0'});xSet(ws,'N'+r,vol,{fmt:'#,##0'});
+    const vv=vol&&typeof vol==='object'?vol.result:vol;
+    xSet(ws,'O'+r,F(`IFERROR(N${r}/H${r},0)`,vv&&x.tot?vv/x.tot:0),{b:false,fmt:'0.00'});
+    xSet(ws,'P'+r,F(`IFERROR(I${r}/N${r},0)`,vv?x.pay/vv:0),{b:false,fmt:XC.$3});
+    if(opt.inv){const iv=(S.inputs[opt.k]||{})[b]||{};const n=iv.inv===''||iv.inv==null?null:num(iv.inv);
+      xSet(ws,'R'+r,n,{fmt:XC.$,b:false});xSet(ws,'S'+r,F(`IF(R${r}="","",I${r}-R${r})`,n==null?'':+(x.pay-n).toFixed(2)),{fmt:XC.$})}
+    r+=2;
+  });
+  const last=r-1,T=A.t;
+  [['A','B'],['C','C'],['D','D'],['E','E'],['F','F'],['G','G'],['H','H'],['I','J'],['L','L'],['N','N'],['O','O'],['P','P']].concat(opt.inv?[['R','R'],['S','S']]:[]).forEach(([c1,c2])=>ws.mergeCells(`${c1}${r}:${c2}${r+1}`));
+  const Y='FFFFF2CC';
+  xSet(ws,'A'+r,'TOTALS',{fill:Y});
+  xSet(ws,'C'+r,opt.cnt?opt.cnt._t:T.head,{fill:Y});xSet(ws,'D'+r,F(`SUM(D${first}:D${last})`),{fmt:XC.n,fill:Y});
+  xSet(ws,'E'+r,F(`SUM(E${first}:E${last})`,+T.reg.toFixed(2)),{fmt:XC.h,fill:Y});
+  xSet(ws,'F'+r,F(`SUM(F${first}:F${last})`,+T.ot.toFixed(2)),{fmt:XC.h,fill:Y});
+  xSet(ws,'G'+r,F(`SUM(G${first}:G${last})`,+(T.dt||0).toFixed(2)),{fmt:XC.h,fill:Y});
+  xSet(ws,'H'+r,F(`SUM(E${r}:G${r+1})`,+T.tot.toFixed(2)),{fmt:XC.h,fill:Y});
+  xSet(ws,'I'+r,F(`SUM(I${first}:I${last})`,+T.pay.toFixed(2)),{fmt:XC.$,fill:Y});
+  xSet(ws,'L'+r,F(`SUM(L${first}:L${last})`),{fmt:'#,##0',fill:Y});
+  xSet(ws,'N'+r,F(`SUM(N${first}:N${last})`),{fmt:'#,##0',fill:Y});
+  xSet(ws,'O'+r,F(`IFERROR(N${r}/H${r},0)`),{fmt:'0.00',fill:Y});
+  xSet(ws,'P'+r,F(`IFERROR(I${r}/N${r},0)`),{fmt:XC.$3,fill:Y});
+  if(opt.inv){xSet(ws,'R'+r,F(`SUM(R${first}:R${last})`),{fmt:XC.$,fill:Y});xSet(ws,'S'+r,F(`SUM(S${first}:S${last})`),{fmt:XC.$,fill:Y})}
+  for(let i=7;i<=r+1;i++)ws.getRow(i).height=15.75;
+  xBox(ws,6,1,r+1,10);xBox(ws,6,12,r+1,12);xBox(ws,6,14,r+1,16);if(opt.inv)xBox(ws,6,18,r+1,19);
+  // notes box
+  const nr=r+3;xSet(ws,'A'+nr,'NOTES:',{h:'left',b:true});
+  ws.mergeCells(`A${nr+1}:J${nr+8}`);const nc=xSet(ws,'A'+(nr+1),(S.inputs[opt.k]||{})._notes||'',{b:false,h:'left'});nc.alignment={horizontal:'left',vertical:'top',wrapText:true};
+  xBox(ws,nr+1,1,nr+8,10);
+  return{firstRow:first,totRow:r,bucketRows:Object.fromEntries(bs.map((b,i)=>[b,first+i*2])),next:nr+11};
+}
+function xSection(ws,row,title){ws.mergeCells(`A${row}:J${row}`);const c=xSet(ws,'A'+row,title,{h:'left',color:'FFFFFFFF',fill:'FF351C15'});return row+1}
+function xDetail(ws,row,f){
+  row=xSection(ws,row,'TIMECARD DETAIL — '+label(f));
+  const cols=[['A','D','EMPLOYEE NAME'],['E','H','DEPARTMENT'],['I','J','LINE'],['K','L','REG'],['M','M','OT'],['N','N','DT'],['O','O','TOTAL'],['P','P','TOTAL PAY'],['Q','S','ADJUSTMENT']];
+  cols.forEach(([a,b,t])=>{if(a!==b)ws.mergeCells(`${a}${row}:${b}${row}`);xSet(ws,a+row,t,{fill:'FFE7E6E6'});ws.getCell(a+row).border={top:THIN,bottom:THIN,left:THIN,right:THIN}});
+  row++;
+  const rows=rowsFor(f).filter(r=>!r.removed&&!r.deleted).sort((a,b)=>a.dept.localeCompare(b.dept)||a.name.localeCompare(b.name));
+  rows.forEach(r=>{
+    const src=r.i!=null?f.rows.find(x=>x.i===r.i):null;
+    const fixNote=r.fixed?'Corrected'+(src&&punchWhy(f,src)?' ('+punchWhy(f,src)+')':'')+(src&&isNoRate(src)?' rate $'+r.rateUsed.toFixed(2):''):r.savedRate?'Saved rate $'+r.rateUsed.toFixed(2):'';
+    const openNote=!r.fixed&&src&&!r.moved?(isNoRate(src)&&r.salary==null&&!r.savedRate&&!((f.fix||{})[r.i]||{}).ok?'NO BILL RATE':punchWhy(f,src)&&!((f.fix||{})[r.i]||{}).ok?'MISSED PUNCH? '+punchWhy(f,src):''):'';
+    const note0=r.deleted?'Deleted from report':r.removed?'Removed — over handshake HC ('+f2(r.base)+' hrs)':r.moved?'Moved from '+r.from:r.adj?(r.tot<0?'Moved to '+r.to:'Moved from '+r.from):r.trimmed?'Deducted '+f2(r.trimmed)+' hrs — over handshake hrs':r.added?'Added '+f2(r.added)+' hrs':r.touched?'Partly moved':'';
+    const salNote=r.salary!=null?'Salary $'+f2(r.salary)+'/day'+(r.sdays>1?' × '+r.sdays+' days':''):'';
+    const note=[note0,fixNote,salNote,openNote].filter(Boolean).join(' · ');const noteX=note;
+    const v=[r.name,r.dept,r.bucket,+r.reg.toFixed(2),+r.ot.toFixed(2),+(r.dt||0).toFixed(2),+r.tot.toFixed(2),+r.pay.toFixed(2),noteX];
+    cols.forEach(([a,b],i)=>{if(a!==b)ws.mergeCells(`${a}${row}:${b}${row}`);
+      const c=xSet(ws,a+row,v[i],{b:false,h:i<3||i===8?'left':'right',fmt:i===7?XC.$:i>2&&i<7?XC.h:undefined,fill:openNote?'FFFFFF00':r.removed||r.trimmed?'FFFCE4D6':note?'FFE2F0D9':undefined});
+      c.border={top:THIN,bottom:THIN,left:THIN,right:THIN}});
+    row++;
+  });
+  return row+1;
+}
+const tabName=f=>f.single?DAYS[f.start.getDay()]+' '+mdy(f.start).slice(0,5):'Period '+mdy(f.start).slice(0,5)+'-'+mdy(f.end).slice(0,5);
+document.getElementById('btnXlsx').onclick=async()=>{
+  if(!S.files.length)return alert('Drop a timecard first.');
+  if(typeof ExcelJS==='undefined')return alert('Excel library did not load — check your internet connection and reload.');
+  const W=weekFiles(),wb=new ExcelJS.Workbook(),t=siteTitle();
+  const dayRef=[]; // {name,map}
+  const addDay=f=>{
+    const nm=tabName(f),ws=wb.addWorksheet(nm,{views:[{showGridLines:false}],pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+    xHeader(wb,ws,t,f.single?mdy(f.start):mdy(f.start)+' - '+mdy(f.end));
+    const A=agg(rowsFor(f));
+    const I=b=>(S.inputs[f.key]||{})[b]||{};
+    const out=xBlock(ws,A,{k:f.key,hs:b=>num(I(b).hs)||null,hc:b=>num(I(b).hc)||null,vol:b=>num(I(b).vol)||null});
+    xDetail(ws,out.next,f);
+    dayRef.push({nm,map:out.bucketRows});
+  };
+  W.days.forEach(x=>{if(x.f)addDay(x.f)});
+  W.ranges.forEach(addDay);
+  // WEEK TOTAL — last tab
+  const ws=wb.addWorksheet('WEEK TOTAL',{views:[{showGridLines:false}],properties:{tabColor:{argb:'FFF5B400'}},pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  xHeader(wb,ws,t,'W.E. '+mdy(W.sat));
+  const{A,cnt,ro}=weekAgg(W);
+  const sumRef=(b,col)=>dayRef.filter(d=>d.map[b]).map(d=>`'${d.nm}'!${col}${d.map[b]}`).join('+');
+  const out=xBlock(ws,A,{k:'WE_'+S.week,cnt,inv:true,
+    hs:b=>{const f=sumRef(b,'L');return f?F(f,ro[b].hs||0):null},
+    hc:b=>{const f=sumRef(b,'D');return f?F(f,ro[b].hc||0):null},
+    vol:b=>{const f=sumRef(b,'N');return f?F(f,ro[b].vol||0):null}});
+  // daily matrix
+  let row=xSection(ws,out.next,'DAILY HOURS / BILLING');
+  const dcols=['C','D','E','F','G','H','I'];
+  xSet(ws,'A'+row,'LINE',{fill:'FFE7E6E6'});ws.mergeCells(`A${row}:B${row}`);
+  W.days.forEach((x,i)=>xSet(ws,dcols[i]+row,DAYS[x.d.getDay()]+' '+mdy(x.d).slice(0,5),{fill:'FFE7E6E6',sz:9}));
+  ws.mergeCells(`J${row}:J${row}`);xSet(ws,'J'+row,'WEEK',{fill:'FFE7E6E6'});
+  const hdrRow=row;row++;
+  const per=W.days.map(x=>x.f?agg(rowsFor(x.f)):null);
+  const line=(lbl,fn,fmt,bold)=>{ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,lbl,{h:'left'});
+    let s=0;per.forEach((p,i)=>{const v=p?fn(p):null;if(v!=null)s+=v;xSet(ws,dcols[i]+row,v==null?null:+v.toFixed(2),{b:!!bold,fmt})});
+    xSet(ws,'J'+row,+s.toFixed(2),{fmt});row++};
+  BUCKETS.forEach(b=>{if(A.b[b].tot||A.b[b].pay)line(b,p=>p.b[b].tot,XC.h)});
+  line('TOTAL HOURS',p=>p.t.tot,XC.h,true);
+  line('BILLING',p=>p.t.pay,'"$"#,##0',true);
+  ws.mergeCells(`A${row}:B${row}`);xSet(ws,'A'+row,'HEADCOUNT',{h:'left'});per.forEach((p,i)=>xSet(ws,dcols[i]+row,p?p.t.head:null));xSet(ws,'J'+row,A.t.head);row++;
+  xBox(ws,hdrRow,1,row-1,10);
+  wb.views=[{activeTab:wb.worksheets.length-1}];
+  const buf=await wb.xlsx.writeBuffer();
+  const code=(t.replace(/^MULTI-SITE.*/,'MULTI')||siteLbl()).replace(/[^\w]/g,'');
+  await saveFile(`${code}_W.E._${mdy(W.sat)}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+};
+document.getElementById('btnPrint').onclick=()=>window.print();
+document.getElementById('btnClear').onclick=()=>ask('Clear ALL saved days, handshake entries and notes?\n(Saved bill rates and salaries are kept.)','CLEAR ALL',()=>{S.files=[];S.inputs={};S.sites.clear();S.seen.clear();S.tab=null;S.week=null;render();alert('Cleared.')});
+document.getElementById('week').onchange=e=>{S.week=e.target.value;S.tab=null;render()};
+document.getElementById('siteName').onchange=()=>render();
+/* ---------- SAVE: one state for the page, merged per day (newest edit wins) ----------
+   Where it's kept:  this browser (auto) · the page itself (claude.ai: SAVE publishes it for everyone;
+   anywhere: SAVE HTML downloads a copy of this page with the data inside) · optional Google shared file. */
+const SRC={style:(document.getElementById('tt-style')||{}).textContent||'',app:(document.getElementById('app')||{}).outerHTML||'',main:(document.currentScript&&document.currentScript.textContent)||(document.getElementById('tt-main')||{}).textContent||''};
+S.imod={};S.gone={};
+let RMOD=(()=>{try{return +localStorage.getItem('tt_rmod')||0}catch(e){return 0}})();
+let FP=null; // fingerprints of last known state
+const fpRates=()=>JSON.stringify([LRATE,MU,DEPTMAP,RATES]);
+function fpDays(){const o={};S.files.forEach(f=>o['F:'+f.key]=JSON.stringify([f.rows.length,f.fix||{},f.ded||{},f.name]));Object.entries(S.inputs).forEach(([k,v])=>o['I:'+k]=JSON.stringify(v));return o}
+function track(baseline){ // stamp what changed since last look
+  const now=Date.now(),d=fpDays(),r=fpRates();
+  if(FP&&!baseline){
+    Object.entries(d).forEach(([k,v])=>{if(FP.d[k]!==v){if(k[0]==='F'){const f=S.files.find(x=>'F:'+x.key===k);if(f)f.mod=now}else S.imod[k.slice(2)]=now}});
+    Object.keys(FP.d).forEach(k=>{if(!(k in d)&&k[0]==='F')S.gone[k.slice(2)]=now});
+    if(FP.r!==r){RMOD=now;try{localStorage.setItem('tt_rmod',String(now))}catch(e){}}
+  }
+  FP={d,r};
+}
+function payload(){
+  track();
+  return{app:'tiktok-we',v:3,savedAt:new Date().toISOString(),site:document.getElementById('siteName').value,
+    days:{files:S.files.map(f=>({name:f.name,start:iso(f.start),end:iso(f.end),single:f.single,key:f.key,rows:f.rows,fix:f.fix||{},ded:f.ded||{},dedRes:f.dedRes||null,mod:f.mod||0})),inputs:S.inputs,imod:S.imod,gone:S.gone},
+    payRates:LRATE,markup:MU,deptmap:DEPTMAP,assocRates:RATES,ratesMod:RMOD};
+}
+function norm(p){ // accept every format this tool has written
+  if(!p||typeof p!=='object')return null;
+  if(p.app==='tiktok-we'&&p.days&&!p.days.imod){p={...p,days:{...p.days,imod:{},gone:{}}}}
+  if(p.app==='tiktok-we')return p;
+  if(Array.isArray(p.files))return{app:'tiktok-we',v:1,savedAt:p.saved||'',days:{files:p.files,inputs:p.inputs||{},imod:{},gone:{}},ratesMod:0};
+  return null;
+}
+function merge(a,b){ // per day / per entry: newest edit wins; deleted days stay deleted
+  a=norm(a);b=norm(b);if(!a)return b;if(!b)return a;
+  const gone={...a.days.gone};Object.entries(b.days.gone||{}).forEach(([k,t])=>{if(!(gone[k]>=t))gone[k]=t});
+  const fs={};[a,b].forEach(p=>(p.days.files||[]).forEach(f=>{const c=fs[f.key];if(!c||(f.mod||0)>=(c.mod||0))fs[f.key]=f}));
+  const files=Object.values(fs).filter(f=>!(gone[f.key]>(f.mod||0)));
+  const inputs={},imod={};[a,b].forEach(p=>Object.entries(p.days.inputs||{}).forEach(([k,v])=>{const t=(p.days.imod||{})[k]||0;if(!(k in inputs)||t>=imod[k]){inputs[k]=v;imod[k]=t}}));
+  const rb=(b.ratesMod||0)>=(a.ratesMod||0)?b:a,ra=rb===b?a:b;
+  return{app:'tiktok-we',v:3,savedAt:(a.savedAt>b.savedAt?a.savedAt:b.savedAt)||'',site:b.site||a.site,days:{files,inputs,imod,gone},
+    payRates:rb.payRates||ra.payRates,markup:rb.markup||ra.markup,deptmap:{...(ra.deptmap||{}),...(rb.deptmap||{})},assocRates:{...(ra.assocRates||{}),...(rb.assocRates||{})},ratesMod:Math.max(a.ratesMod||0,b.ratesMod||0)};
+}
+function apply(p){
+  p=norm(p);if(!p)return;
+  const toDate=x=>new Date(x+'T00:00:00');
+  S.files=(p.days.files||[]).map(x=>({...x,start:toDate(x.start),end:toDate(x.end),moves:[]}));
+  S.inputs=p.days.inputs||{};S.imod=p.days.imod||{};S.gone=p.days.gone||{};
+  if(p.payRates){const pr={...p.payRates};Object.keys(LRATE).forEach(k=>delete LRATE[k]);Object.assign(LRATE,Object.keys(pr).length?pr:PAY_DEF);LSs('tt_payrates',LRATE)}
+  if(p.markup){MU.pct=p.markup.pct;LSs('tt_markup',MU)}
+  if(p.deptmap){Object.assign(DEPTMAP,p.deptmap);LSs('tt_deptmap',DEPTMAP)}
+  if(p.assocRates){Object.assign(RATES,p.assocRates);saveRates()}
+  RMOD=p.ratesMod||RMOD;try{localStorage.setItem('tt_rmod',String(RMOD))}catch(e){}
+  if(p.site)document.getElementById('siteName').value=p.site;
+  const wk=[...new Set(S.files.map(f=>iso(weSat(f.end))))].sort();if(!wk.includes(S.week)){S.week=wk[wk.length-1]||null;S.tab=null}
+  track(true);
+}
+const setStat=(t,bad)=>{const st=document.getElementById('saveStat');st.textContent=t;st.className='savestat'+(bad?' bad':'')};
+const hhmm=d=>new Date(d).toLocaleString([],{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
+let saveT=null,lastSaved='',PUBLISHED=null; // PUBLISHED = state everyone currently sees
+function unsaved(){if(!PUBLISHED)return false;const t=Date.parse(PUBLISHED.savedAt)||0;return S.files.some(f=>(f.mod||0)>t)||Object.values(S.imod).some(x=>x>t)||Object.values(S.gone).some(x=>x>t)||RMOD>t}
+function saveNow(){ // this browser, automatic
+  try{const j=JSON.stringify(payload());if(j!==lastSaved){localStorage.setItem('tt_days',j);lastSaved=j}
+    if(SHARED_URL&&!ART){if(unsaved()&&!SYNCING){setStat('● changes not saved yet — auto-saving…',true);autoSync()}return true}
+    if(ART){if(unsaved())setStat('● unsaved changes — hit SAVE so everyone sees them',true);return true}
+    if(NETDIAG){setStat('⚠ not connected to the save server — saved in this browser only',true);return true}
+    const n=S.files.length;setStat(n?`✓ ${n} day${n>1?'s':''} kept in this browser`:'');return true;
+  }catch(e){setStat('⚠ this browser won\'t keep data — use SAVE HTML',true);return false}
+}
+/* files out: works on Netlify / local file (link) and inside claude.ai (downloads capability) */
+let DL=null,ART=null;
+async function saveFile(name,data,mime){
+  const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});
+  if(DL){try{await DL.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='declined')alert('Download not available here ('+(e.code||e.message)+').')}return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+}
+const jsonSafe=o=>JSON.stringify(o).replace(/</g,'\\u003c');
+function pageHTML(p){
+  return'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TikTok W.E. Report</title><style id="tt-style">'+SRC.style+'</style></head><body>'+SRC.app+
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"><\/script>'+
+    '<script type="application/json" id="tt-state">'+jsonSafe(p)+'<\/script><script id="tt-main">'+SRC.main+'<\/script></body></html>';
+}
+async function saveHTML(){
+  const p=payload(),n=p.days.files.length;
+  await saveFile('TikTok_WE_Report.html',pageHTML(p),'text/html');
+  alert(`HTML saved with ${n} day${n===1?'':'s'} inside — open it (or upload it to Netlify) and the data is there.`);
+}
+function backupFile(){saveFile('TikTok_WE_Backup_'+iso(new Date())+'.json',JSON.stringify(payload()),'application/json')}
+/* ---------- Google shared file (optional, for Netlify) ---------- */
+const SHARED_DEFAULT=''; // paste the Apps Script /exec URL here to build it in for everyone
+let SHARED_URL=(()=>{try{return localStorage.getItem('tt_shared_url')||SHARED_DEFAULT}catch(e){return SHARED_DEFAULT}})();
+let NETLIFY=false,NETDIAG='';
+/* ---------- GITHUB SAVE: one JSON file in a GitHub repo, read/written with the GitHub Contents API ----------
+   Fill these in once (in GitHub's editor) and everyone who opens the page saves to the same file.
+   token = a fine-grained personal access token limited to ONLY the data repo, permission "Contents: Read and write". */
+const GITHUB_SAVE={owner:'',repo:'',branch:'',path:'tiktok_we_state.json',token:''};
+let GH=(()=>{const ok=o=>o&&o.owner&&o.repo&&o.token;try{const o=JSON.parse(localStorage.getItem('tt_gh')||'null');if(ok(o))return{...GITHUB_SAVE,...o}}catch(e){}return ok(GITHUB_SAVE)?{...GITHUB_SAVE}:null})();
+let GH_SHA=null;
+const ghURL=()=>`https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}/contents/${(GH.path||'tiktok_we_state.json').split('/').map(encodeURIComponent).join('/')}`;
+const ghRef=()=>GH.branch?'ref='+encodeURIComponent(GH.branch)+'&':'';
+const ghH=acc=>({Authorization:'Bearer '+GH.token,Accept:acc||'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'});
+const b64e=str=>{const b=new TextEncoder().encode(str);let o='';for(let i=0;i<b.length;i+=0x8000)o+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(o)};
+const b64d=str=>new TextDecoder().decode(Uint8Array.from(atob(str.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+function ghErr(r,what){
+  if(r.status===401)return new Error('GitHub token was rejected — it may have expired. Make a new one and update ⚙ SHARED.');
+  if(r.status===403)return new Error('GitHub refused access — the token needs "Contents: Read and write" on '+GH.owner+'/'+GH.repo+'.');
+  if(r.status===404)return new Error('GitHub repo '+GH.owner+'/'+GH.repo+(GH.branch?' (branch '+GH.branch+')':'')+' not found, or the token can\'t see it.');
+  return new Error('GitHub '+what+' failed ('+r.status+')');
+}
+async function ghGet(){
+  const r=await fetch(ghURL()+'?'+ghRef()+'t='+Date.now(),{headers:ghH(),cache:'no-store'});
+  if(r.status===404){ // file not made yet — check the repo itself is reachable
+    const rr=await fetch(`https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}`,{headers:ghH(),cache:'no-store'});
+    if(!rr.ok)throw ghErr(rr,'load');GH_SHA=null;return{};
+  }
+  if(!r.ok)throw ghErr(r,'load');
+  const j=await r.json();GH_SHA=j.sha;
+  if(j.encoding==='base64'&&j.content)return JSON.parse(b64d(j.content)||'{}');
+  const r2=await fetch(ghURL()+'?'+ghRef()+'t='+Date.now(),{headers:ghH('application/vnd.github.raw+json'),cache:'no-store'}); // files over 1 MB
+  if(!r2.ok)throw ghErr(r2,'load');const t=await r2.text();return JSON.parse(t||'{}');
+}
+async function ghPut(obj){
+  const body={message:'TikTok W.E. save · '+new Date().toLocaleString(),content:b64e(JSON.stringify(obj))};
+  if(GH_SHA)body.sha=GH_SHA;if(GH.branch)body.branch=GH.branch;
+  const r=await fetch(ghURL(),{method:'PUT',headers:{...ghH(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===409||(r.status===422&&!GH_SHA)||(r.status===422&&/sha/i.test(await r.clone().text()))){const e=new Error('someone else saved at the same moment');e.conflict=true;throw e}
+  if(!r.ok)throw ghErr(r,'save');
+  const j=await r.json();GH_SHA=j.content&&j.content.sha;return{ok:true};
+} // true when this site's own /api/state save function answers (GitHub-connected Netlify)
+async function sharedGet(){if(GH)return ghGet();const r=await fetch(SHARED_URL+(SHARED_URL.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();try{return JSON.parse(t||'{}')}catch(e){throw new Error(NETLIFY?'save function returned a page, not data':'not the shared-save script — check the URL and that access is "Anyone"')}}
+async function sharedPost(obj){if(GH)return ghPut(obj);const r=await fetch(SHARED_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(obj)});if(!r.ok)throw new Error('HTTP '+r.status);const j=JSON.parse(await r.text());if(!j.ok)throw new Error(j.error||'save failed');return j}
+async function sharedLoad(quiet){
+  if(!SHARED_URL)return;setStat('⟳ loading shared data…');
+  try{const d=norm(await sharedGet());if(d){PUBLISHED=d;apply(merge(d,payload()));render()}else if(!PUBLISHED){PUBLISHED={savedAt:new Date(0).toISOString()};saveNow()}
+    setStat(d?(unsaved()?'● unsaved changes — hit SAVE so everyone sees them':`✓ up to date · saved ${hhmm(d.savedAt)}`):(GH?`✓ GitHub connected (${GH.owner}/${GH.repo}) — nothing saved yet`:NETLIFY?'✓ connected — nothing saved yet':'shared save connected — nothing saved yet'),unsaved());
+    if(!quiet)alert('Loaded latest shared data.');
+  }catch(e){setStat('⚠ shared load failed — '+e.message,true)}
+}
+/* ---------- SAVE ---------- */
+let AUTO_T=null,SYNCING=false;
+async function sharedSave(quiet){
+  if(SYNCING){if(!quiet)alert('Already saving — one moment.');return}
+  SYNCING=true;setStat(quiet?'⟳ auto-saving…':'⟳ saving…');
+  try{let p;for(let tries=0;;tries++){
+      const cur=norm(await sharedGet());if(cur){apply(merge(cur,payload()));render()}
+      p=payload();try{await sharedPost(p);break}catch(e){if(!e.conflict||tries>=2)throw e}}
+    PUBLISHED=p;SYNCING=false;saveNow();
+    const n=p.days.files.length;setStat(`✓ saved for everyone ${hhmm(p.savedAt)} · ${n} day${n===1?'':'s'}${GH?' · GitHub':''}`);
+    if(!quiet)alert(`✓ Saved — everyone with the link now sees ${n} day${n===1?'':'s'}.`);
+  }catch(e){SYNCING=false;setStat('⚠ save failed — '+e.message+(quiet?' · will retry':''),true);
+    if(!quiet)alert('Save failed: '+e.message+'. Your data is still kept in this browser — try again.');else{clearTimeout(AUTO_T);AUTO_T=setTimeout(autoSync,30000)}}
+}
+function autoSync(){ // GitHub/Netlify (or Google) save server: push changes a few seconds after they stop
+  if(!SHARED_URL||ART)return;clearTimeout(AUTO_T);
+  AUTO_T=setTimeout(()=>{if(unsaved()&&!SYNCING)sharedSave(true)},GH?8000:2500);
+}
+async function saveAll(){
+  if(ART){ // claude.ai: the page publishes its data — every viewer gets it
+    setStat('⟳ saving…');const p=payload();
+    try{sessionStorage.setItem('tt_pending','1')}catch(e){}
+    try{await ART.publish({'data/state.json':{content:JSON.stringify(p),contentType:'application/json'}});
+      try{sessionStorage.removeItem('tt_pending')}catch(e){}
+      PUBLISHED=p;saveNow();const n=p.days.files.length;setStat(`✓ saved for everyone ${hhmm(p.savedAt)} · ${n} day${n===1?'':'s'}`);alert(`✓ Saved — everyone who opens this page now sees ${n} day${n===1?'':'s'}.`);
+    }catch(e){try{sessionStorage.removeItem('tt_pending')}catch(x){}
+      const c=e&&e.code;
+      if(c==='conflict')return; // someone saved first: page reloads, your edits come back from this browser
+      if(c==='not_writer'||c==='not_granted')alert('You can view this page but not save it — ask the owner for edit access. Your changes are kept in this browser.');
+      else alert('Saving to the page isn\'t available here. Your changes are kept in this browser.');
+      setStat('● not saved for everyone',true)}
+    return;
+  }
+  if(SHARED_URL){clearTimeout(AUTO_T);return sharedSave(false)}
+  // no save server reached: keep it in this browser and say why others can't see it
+  clearTimeout(saveT);lastSaved='';saveNow();
+  setStat('⚠ not connected to the save server — saved in this browser only',true);
+  alert(NETDIAG||'Saved in this browser only — this page isn\'t connected to the Netlify save server, so others can\'t see it yet.');
+}
+document.getElementById('btnSave').onclick=saveAll;
+document.getElementById('btnSaveHtml').onclick=saveHTML;
+document.getElementById('btnBackup').onclick=backupFile;
+document.getElementById('btnShared').onclick=()=>{
+  if(ART)return alert('On claude.ai, SAVE already saves the page for everyone — no setup needed.');
+  const g=GH||GITHUB_SAVE,dlg=document.getElementById('dlg');
+  dlg.innerHTML=`<div class="card" style="max-width:520px"><h3 style="margin-top:0">SHARED SAVE — GITHUB</h3>
+    <p style="margin:0 0 6px;color:var(--mute);font-size:13px">Saved data goes into one file in a GitHub repo. Everyone using the same settings sees the same days, rates and notes.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+     <label>OWNER (account / org)<input id="ghOwner" value="${esc(g.owner)}" placeholder="chuckdavid"></label>
+     <label>DATA REPO<input id="ghRepo" value="${esc(g.repo)}" placeholder="tiktok-we-data"></label>
+     <label>FILE<input id="ghPath" value="${esc(g.path||'tiktok_we_state.json')}"></label>
+     <label>BRANCH (blank = default)<input id="ghBranch" value="${esc(g.branch||'')}" placeholder="main"></label></div>
+    <label>TOKEN (fine-grained, this repo only, Contents: Read and write)<input id="ghTok" type="password" value="${esc(g.token)}" placeholder="github_pat_…"></label>
+    <div id="ghMsg" class="hint" style="margin-top:6px"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:10px;flex-wrap:wrap"><span>${GH?'<button id="shLoad">⟳ LOAD LATEST</button> <button class="mini x" id="shOff">DISCONNECT</button>':''}</span><span><button id="shNo">CANCEL</button> <button class="pri" id="shGo">TEST &amp; CONNECT</button></span></div>
+    ${GH&&!GITHUB_SAVE.token?`<details style="margin-top:8px"><summary style="font-size:12px">Make it built-in for everyone</summary><div class="hint">In GitHub, edit <b>index.html</b>, find the line starting with <code>const GITHUB_SAVE=</code> and replace it with the line below. Then nobody has to type these settings.</div><textarea id="ghLine" readonly style="width:100%;height:58px;font:11px monospace">const GITHUB_SAVE=${esc(JSON.stringify({owner:g.owner,repo:g.repo,branch:g.branch||'',path:g.path||'tiktok_we_state.json',token:g.token}))};</textarea><button class="mini" id="ghCopy">COPY LINE</button></details>`:''}</div>`;
+  dlg.style.display='flex';const close=()=>{dlg.style.display='none'};
+  document.getElementById('shNo').onclick=close;dlg.onclick=e=>{if(e.target===dlg)close()};
+  const L=document.getElementById('shLoad');if(L)L.onclick=()=>{close();sharedLoad(false)};
+  const C=document.getElementById('ghCopy');if(C)C.onclick=()=>{const t=document.getElementById('ghLine');t.select();try{navigator.clipboard.writeText(t.value).then(()=>alert('Copied.'),()=>{})}catch(e){}};
+  const O=document.getElementById('shOff');if(O)O.onclick=()=>{GH=null;GH_SHA=null;SHARED_URL='';PUBLISHED=null;try{localStorage.removeItem('tt_gh');localStorage.setItem('tt_shared_url','')}catch(e){}close();btnLabels();saveNow()};
+  document.getElementById('shGo').onclick=async()=>{
+    const v=id=>document.getElementById(id).value.trim(),cfg={owner:v('ghOwner'),repo:v('ghRepo'),path:v('ghPath')||'tiktok_we_state.json',branch:v('ghBranch'),token:v('ghTok')};
+    const m=document.getElementById('ghMsg');if(!cfg.owner||!cfg.repo||!cfg.token){m.innerHTML='<b class="neg">Owner, repo and token are all needed.</b>';return}
+    const keep=GH;GH=cfg;m.textContent='Checking GitHub…';
+    try{await ghGet();try{localStorage.setItem('tt_gh',JSON.stringify(cfg))}catch(e){}SHARED_URL='github:'+cfg.owner+'/'+cfg.repo;PUBLISHED=null;close();btnLabels();await sharedLoad(false)}
+    catch(e){GH=keep;m.innerHTML='<b class="neg">'+esc(e.message)+'</b>'}
+  };
+};
+function btnLabels(){
+  document.getElementById('btnSave').textContent=ART||NETLIFY||GH?'SAVE':SHARED_URL?'SAVE (SHARED)':'SAVE';
+  document.getElementById('btnShared').textContent=GH?'⚙ GITHUB ✓':'⚙ SHARED';
+  document.getElementById('btnSave').title=ART||NETLIFY||GH?'Save so everyone with the link sees it':SHARED_URL?'Save to the shared Google file':'Keep in this browser and download this page with the data inside';
+  document.getElementById('btnShared').hidden=!!ART;document.getElementById('btnPrint').hidden=!!window.claude;
+}
+const _render=render;
+render=function(){reprice();_render();clearTimeout(saveT);saveT=setTimeout(saveNow,400)};
+document.addEventListener('input',()=>{clearTimeout(saveT);saveT=setTimeout(saveNow,800)},true);
+window.addEventListener('beforeunload',saveNow);
+/* ---------- startup: data inside this HTML + this browser, then the shared copy ---------- */
+(function boot(){
+  let emb=null;try{const el=document.getElementById('tt-state');if(el&&el.textContent.trim())emb=norm(JSON.parse(el.textContent))}catch(e){}
+  let loc=null;try{loc=norm(JSON.parse(localStorage.getItem('tt_days')||'null'))}catch(e){}
+  if(emb)PUBLISHED=emb;
+  const start=merge(emb,loc);if(start)apply(start);
+  render();btnLabels();
+  if(emb&&!loc&&S.files.length)setStat(`✓ loaded ${S.files.length} saved day${S.files.length===1?'':'s'} from this page (${hhmm(emb.savedAt)})`);
+  if(window.claude&&claude.use){
+    claude.use('downloads').then(d=>{DL=d}).catch(()=>{});
+    claude.use('artifact').then(async a=>{if(!a)return;ART=a;btnLabels();
+      try{const r=await fetch('data/state.json',{cache:'no-store'});if(r.ok){const p=norm(await r.json());if(p&&p.days){PUBLISHED=p;apply(merge(p,payload()));render()}}}catch(e){}
+      let pend=false;try{pend=sessionStorage.getItem('tt_pending')==='1';sessionStorage.removeItem('tt_pending')}catch(e){}
+      if(pend)alert('Someone else saved first — their changes are loaded and yours are kept. Hit SAVE again.');
+      saveNow();if(!unsaved()&&PUBLISHED)setStat(`✓ up to date · saved ${hhmm(PUBLISHED.savedAt)}`);
+    }).catch(()=>{});
+  }
+  if(GH&&!window.claude){SHARED_URL='github:'+GH.owner+'/'+GH.repo;btnLabels();sharedLoad(true);setInterval(()=>{if(!unsaved()&&!SYNCING&&document.visibilityState==='visible')sharedLoad(true)},60000)}
+  // GitHub-connected Netlify: this site's own save function at /api/state
+  else if(/^https?:$/.test(location.protocol)&&!window.claude){
+    fetch('/api/state?probe=1',{cache:'no-store'}).then(async r=>{
+      const ct=r.headers.get('content-type')||'';
+      if(r.ok&&ct.includes('json')){NETLIFY=true;SHARED_URL='/api/state';btnLabels();await sharedLoad(true);setInterval(()=>{if(!unsaved()&&document.visibilityState==='visible')sharedLoad(true)},120000)}
+      else{NETDIAG=`Saved in this browser only. The Netlify save server didn't answer (${location.host}/api/state gave ${r.status}${r.ok?' but not data':''}). This site was deployed without the save function — deploy it from the GitHub repo (index.html + netlify folder + package.json + netlify.toml), not by drag-and-drop.`;
+        if(SHARED_URL)sharedLoad(true);else setStat('⚠ not connected to the save server — SAVE keeps data in this browser only',true)}
+    }).catch(()=>{NETDIAG='Saved in this browser only — the save server could not be reached.';if(SHARED_URL)sharedLoad(true)});
+  }else{if(!window.claude)NETDIAG='Saved in this browser only — this file is opened from your computer, not from the Netlify link. Open the Netlify link to save for everyone.';if(SHARED_URL)sharedLoad(true)}
+})();
+</script>
+</body>
+</html>
