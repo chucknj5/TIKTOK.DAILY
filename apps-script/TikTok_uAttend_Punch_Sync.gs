@@ -9,7 +9,7 @@
  * 1. script.google.com → New project → paste this whole file → name it "TikTok Punch Sync" → Save.
  * 2. Project Settings (gear) → Script Properties → Add:
  *      UATTEND_API_KEY   = your uAttend API key
- *      SYNC_PASSWORD     = any password you make up (the report sends it with each pull)
+ *      SYNC_PASSWORD     = (optional) a password the report must send with each pull
  * 3. Run  testPull  once (▶ Run) and approve Google's permission prompts.  Check the Log tab.
  * 4. Deploy → New deployment → gear → Web app
  *      Execute as: Me      Who has access: Anyone
@@ -129,7 +129,7 @@ function doGet(e) {
   let out;
   try {
     const pw = PropertiesService.getScriptProperties().getProperty('SYNC_PASSWORD') || '';
-    if (!pw || p.k !== pw) throw new Error('Wrong or missing sync password.');
+    if (pw && p.k !== pw) throw new Error('Wrong or missing sync password.');  // optional: only checked if SYNC_PASSWORD is set
     const start = p.start, end = p.end || p.start;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(end || '')) throw new Error('start and end must be yyyy-mm-dd.');
     let pulled = null;

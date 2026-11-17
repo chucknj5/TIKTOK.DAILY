@@ -1212,7 +1212,7 @@ document.getElementById('btnUA').onclick=()=>{
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px"><button id="uaNo">CLOSE</button><button id="uaGet" title="Load what's already saved in Google Sheets (no uAttend call)">LOAD FROM SHEET</button><button class="pri" id="uaGo">⟳ PULL FROM UATTEND</button></div>
     <details ${UA.url?'':'open'} style="margin-top:10px"><summary style="font-size:12px">Sync settings${UA.url?' ✓':''}</summary>
      <label>SYNC SCRIPT WEB APP URL (ends in /exec)<input id="uaUrl" value="${esc(UA.url||'')}" placeholder="https://script.google.com/macros/s/…/exec"></label>
-     <label>SYNC PASSWORD<input id="uaKey" type="password" value="${esc(UA.key||'')}"></label>
+     <label>SYNC PASSWORD (only if you set one)<input id="uaKey" type="password" value="${esc(UA.key||'')}"></label>
      <button class="mini" id="uaSave">SAVE SETTINGS</button></details></div>`;
   dlg.style.display='flex';const close=()=>{dlg.style.display='none'};const msg=(t,bad)=>{const m=document.getElementById('uaMsg');m.innerHTML=bad?'<b class="neg">'+esc(t)+'</b>':esc(t)};
   document.getElementById('uaNo').onclick=close;dlg.onclick=e=>{if(e.target===dlg&&!busy)close()};
