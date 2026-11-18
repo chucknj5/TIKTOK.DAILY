@@ -1192,7 +1192,7 @@ function weekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate())
 async function uaRun(action,start,end){
   if(!UA.url)throw new Error('Set the sync script URL first.');
   const q=`${UA.url}?action=${action}&start=${start}&end=${end}&k=${encodeURIComponent(UA.key||'')}`;
-  const d=await jsonp(q,action==='pull'?300000:90000);
+  let d;try{d=await jsonp(q,action==='pull'?300000:90000)}catch(e1){try{d=await fetch(q,{cache:'no-store'}).then(r=>r.json())}catch(e2){throw e1}} // fall back to a direct request if the script tag is blocked
   if(!d||!d.ok)throw new Error((d&&d.error)||'The sync script returned an error.');
   if(!d.rows||!d.rows.length)return{days:0,rows:0,pulled:d.pulled};
   const [y1,m1,d1]=start.split('-'),[y2,m2,d2]=end.split('-');
