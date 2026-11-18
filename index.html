@@ -1182,7 +1182,7 @@ document.getElementById('siteName').onchange=()=>render();
    The script calls uAttend's API (key stays on Google's side), saves the punches on the "TikTok Punches" tab
    of the uAttend Timecards sheet, and sends them back here in Punch Report format. */
 const UATTEND_SYNC={url:'https://script.google.com/macros/s/AKfycbzA8GkAzVIpg9JUhZni95hRj-3iSoasWjBPOFkosZvlhT8YT8_aL2zfQxsKcR1crct5Qg/exec',key:''}; // optional: fill in to build it in for everyone
-let UA=(()=>{try{const o=JSON.parse(localStorage.getItem('tt_ua')||'null');if(o&&o.url)return o}catch(e){}return UATTEND_SYNC.url?{...UATTEND_SYNC}:{url:'',key:''}})();
+let UA=(()=>{let o=null;try{o=JSON.parse(localStorage.getItem('tt_ua')||'null')}catch(e){}o=o||{url:'',key:''};if(UATTEND_SYNC.url)o.url=UATTEND_SYNC.url;return o})(); // built-in link always wins over an old saved one
 function jsonp(url,ms){return new Promise((res,rej)=>{const cb='ua_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6),sc=document.createElement('script');
   const done=()=>{try{delete window[cb]}catch(e){window[cb]=undefined}sc.remove();clearTimeout(t)};
   const t=setTimeout(()=>{done();rej(new Error('No answer from the sync script after '+Math.round(ms/1000)+' s — check the Web app URL and that it is deployed for "Anyone".'))},ms);
@@ -1211,7 +1211,7 @@ document.getElementById('btnUA').onclick=()=>{
     <div id="uaMsg" class="hint" style="margin-top:8px;min-height:18px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px"><button id="uaNo">CLOSE</button><button id="uaGet" title="Load what's already saved in Google Sheets (no uAttend call)">LOAD FROM SHEET</button><button class="pri" id="uaGo">⟳ PULL FROM UATTEND</button></div>
     <details ${UA.url&&UA.key?'':'open'} style="margin-top:10px"><summary style="font-size:12px">Sync settings${UA.url&&UA.key?' ✓':' — enter the sync password'}</summary>
-     <label>SYNC SCRIPT WEB APP URL (ends in /exec)<input id="uaUrl" value="${esc(UA.url||'')}" placeholder="https://script.google.com/macros/s/…/exec"></label>
+     <label>SYNC SCRIPT WEB APP URL (ends in /exec)<input id="uaUrl" value="${esc(UA.url||'')}" ${UATTEND_SYNC.url?'readonly':''} placeholder="https://script.google.com/macros/s/…/exec"></label>
      <label>SYNC PASSWORD<input id="uaKey" type="password" value="${esc(UA.key||'')}"></label>
      <button class="mini" id="uaSave">SAVE SETTINGS</button></details></div>`;
   dlg.style.display='flex';const close=()=>{dlg.style.display='none'};const msg=(t,bad)=>{const m=document.getElementById('uaMsg');m.innerHTML=bad?'<b class="neg">'+esc(t)+'</b>':esc(t)};
@@ -1219,7 +1219,7 @@ document.getElementById('btnUA').onclick=()=>{
   dlg.querySelectorAll('[data-uarng]').forEach(b=>b.onclick=()=>{const t=new Date(),y=new Date(t);y.setDate(t.getDate()-1);let a=t,z=t;
     if(b.dataset.uarng==='yday'){a=z=y}else if(b.dataset.uarng==='week'){a=weekStart(t)}else if(b.dataset.uarng==='last'){a=weekStart(t);a.setDate(a.getDate()-7);z=new Date(a);z.setDate(a.getDate()+6)}
     document.getElementById('uaS').value=iso(a);document.getElementById('uaE').value=iso(z)});
-  const saveCfg=()=>{UA={url:document.getElementById('uaUrl').value.trim(),key:document.getElementById('uaKey').value};try{localStorage.setItem('tt_ua',JSON.stringify(UA))}catch(e){}};
+  const saveCfg=()=>{UA={url:UATTEND_SYNC.url||document.getElementById('uaUrl').value.trim(),key:document.getElementById('uaKey').value.trim()};try{localStorage.setItem('tt_ua',JSON.stringify(UA))}catch(e){}};
   document.getElementById('uaSave').onclick=()=>{saveCfg();msg(UA.url?'Settings saved.':'Settings cleared.')};
   let busy=false;
   const go=async action=>{if(busy)return;saveCfg();const a=document.getElementById('uaS').value,z=document.getElementById('uaE').value;
