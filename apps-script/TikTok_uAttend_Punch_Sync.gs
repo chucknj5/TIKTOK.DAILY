@@ -21,7 +21,7 @@ const CONFIG = {
   SHEET_ID: '1lmycnNNY-i6Mv6z29soLTG62RtzdKNgOucb890K3Noo', // "uAttend Timecards"
   TAB: 'TikTok Punches',
   LOG_TAB: 'Log',
-  // Only keep TikTok punches: every dept code seen in TikTok's punch reports (100/200/300 + 101/201/301 + ONSITE).
+  // Only keep TikTok punches: 100 LEAD-2nd · 101 LEAD-1 · 200 FORKLIFT-2nd · 201 forklift-1 · 300 GENERAL-2nd · 301 GENERAL-1 · ONSITE.
   // The report decides what is billed. Leave the list empty [] to keep every department in the uAttend account.
   DEPT_CODES: ['100', '101', '200', '201', '300', '301', 'ONSITE'],
   API: 'https://api.workwelltech.com/reports/punch',
@@ -52,7 +52,7 @@ function fetchPunches_(start, end) {           // start/end = 'yyyy-mm-dd'
     if (code === 401 || code === 403) throw new Error('uAttend refused the API key (' + code + '). Check UATTEND_API_KEY.');
     if (code === 429) { Utilities.sleep(5000); page--; continue; }
     if (code !== 200) throw new Error('uAttend error ' + code + ': ' + body.slice(0, 300));
-    const j = JSON.parse(body);
+    const j0 = JSON.parse(body), j = j0.Body || j0;            // uAttend wraps the report in { Product, Body }
     if (j.Response && j.Response.Success === false) throw new Error('uAttend: ' + JSON.stringify(j.Response.Messages || j.Response));
     const items = j.PunchReportLineItems || [];
     out.push.apply(out, items);

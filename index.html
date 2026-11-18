@@ -175,7 +175,7 @@ const S={files:[],inputs:{},sites:new Set(),seen:new Set(),week:null,tab:null};
 
 const LS=(k,d)=>{try{return Object.assign(d,JSON.parse(localStorage.getItem(k)||'{}'))}catch(e){return d}};
 const LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const DEPT_DEF={'100':'LEAD','200':'FORKLIFT','300':'GENERAL LABOR'}; // TikTok punch report dept codes
+const DEPT_DEF={'100':'LEAD','101':'LEAD','200':'FORKLIFT','201':'FORKLIFT','300':'GENERAL LABOR','301':'GENERAL LABOR'}; // TikTok dept codes: x00 = 2nd shift, x01 = 1st shift (ONSITE is not billed)
 let DEPTMAP=LS('tt_deptmap',{...DEPT_DEF});
 Object.entries(DEPT_DEF).forEach(([c,b])=>{if(!DEPTMAP[c])DEPTMAP[c]=b});   // dept code -> FORKLIFT / LEAD / GENERAL
 const PAY_DEF={'FORKLIFT':23,'LEAD':25,'GENERAL LABOR':20},MU_DEF=28.5;
