@@ -1181,7 +1181,7 @@ document.getElementById('siteName').onchange=()=>render();
 /* ---------- UATTEND: pull the Punch Report through the "TikTok Punch Sync" Google Apps Script ----------
    The script calls uAttend's API (key stays on Google's side), saves the punches on the "TikTok Punches" tab
    of the uAttend Timecards sheet, and sends them back here in Punch Report format. */
-const UATTEND_SYNC={url:'',key:''}; // optional: fill in to build it in for everyone
+const UATTEND_SYNC={url:'https://script.google.com/macros/s/AKfycbzA8GkAzVIpg9JUhZni95hRj-3iSoasWjBPOFkosZvlhT8YT8_aL2zfQxsKcR1crct5Qg/exec',key:''}; // optional: fill in to build it in for everyone
 let UA=(()=>{try{const o=JSON.parse(localStorage.getItem('tt_ua')||'null');if(o&&o.url)return o}catch(e){}return UATTEND_SYNC.url?{...UATTEND_SYNC}:{url:'',key:''}})();
 function jsonp(url,ms){return new Promise((res,rej)=>{const cb='ua_cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6),sc=document.createElement('script');
   const done=()=>{try{delete window[cb]}catch(e){window[cb]=undefined}sc.remove();clearTimeout(t)};
@@ -1210,9 +1210,9 @@ document.getElementById('btnUA').onclick=()=>{
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="mini" data-uarng="today">TODAY</button><button class="mini" data-uarng="yday">YESTERDAY</button><button class="mini" data-uarng="week">THIS WEEK</button><button class="mini" data-uarng="last">LAST WEEK</button></div>
     <div id="uaMsg" class="hint" style="margin-top:8px;min-height:18px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px"><button id="uaNo">CLOSE</button><button id="uaGet" title="Load what's already saved in Google Sheets (no uAttend call)">LOAD FROM SHEET</button><button class="pri" id="uaGo">⟳ PULL FROM UATTEND</button></div>
-    <details ${UA.url?'':'open'} style="margin-top:10px"><summary style="font-size:12px">Sync settings${UA.url?' ✓':''}</summary>
+    <details ${UA.url&&UA.key?'':'open'} style="margin-top:10px"><summary style="font-size:12px">Sync settings${UA.url&&UA.key?' ✓':' — enter the sync password'}</summary>
      <label>SYNC SCRIPT WEB APP URL (ends in /exec)<input id="uaUrl" value="${esc(UA.url||'')}" placeholder="https://script.google.com/macros/s/…/exec"></label>
-     <label>SYNC PASSWORD (only if you set one)<input id="uaKey" type="password" value="${esc(UA.key||'')}"></label>
+     <label>SYNC PASSWORD<input id="uaKey" type="password" value="${esc(UA.key||'')}"></label>
      <button class="mini" id="uaSave">SAVE SETTINGS</button></details></div>`;
   dlg.style.display='flex';const close=()=>{dlg.style.display='none'};const msg=(t,bad)=>{const m=document.getElementById('uaMsg');m.innerHTML=bad?'<b class="neg">'+esc(t)+'</b>':esc(t)};
   document.getElementById('uaNo').onclick=close;dlg.onclick=e=>{if(e.target===dlg&&!busy)close()};
@@ -1229,7 +1229,7 @@ document.getElementById('btnUA').onclick=()=>{
     try{const r=await uaRun(action,a,z);busy=false;
       if(!r.rows){msg(action==='pull'?'uAttend returned no TikTok punches for those dates.':'Nothing saved in the sheet for those dates yet — use PULL FROM UATTEND.',true);dlg.querySelectorAll('button').forEach(b=>b.disabled=false);return}
       close();alert(`✓ ${r.rows} punches · ${r.days} day${r.days===1?'':'s'} loaded${action==='pull'?' from uAttend and saved to Google Sheets':' from Google Sheets'}. Your edits on those days were kept.`);
-    }catch(e){busy=false;msg(e.message,true);dlg.querySelectorAll('button').forEach(b=>b.disabled=false)}};
+    }catch(e){busy=false;msg(e.message,true);if(/password/i.test(e.message)){const dt=dlg.querySelector('details');if(dt)dt.open=true;const k=document.getElementById('uaKey');if(k)k.focus()}dlg.querySelectorAll('button').forEach(b=>b.disabled=false)}};
   document.getElementById('uaGo').onclick=()=>go('pull');document.getElementById('uaGet').onclick=()=>go('get');
 };
 /* ---------- SAVE: one state for the page, merged per day (newest edit wins) ----------
